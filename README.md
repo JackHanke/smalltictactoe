@@ -17,5 +17,5 @@ number of optimal datasets.
 However, you can prune 
 
 
-
+- [espresso implementation](https://github.com/classabbyamp/espresso-logic/tree/master)
 

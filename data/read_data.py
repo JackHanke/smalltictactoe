@@ -1,7 +1,7 @@
 # thanks Gemini
 
-import pandas as pd
-import torch
+# import pandas as pd
+# import torch
 
 def encode_board(board_str):
     mapping = {'X': 1, 'O': -1, ' ': 0}
@@ -15,10 +15,12 @@ def get_data(path: str):
 
 if __name__ == '__main__':
     # count the total number of minimax datasets possible
-    PATH = 'data/datasets/tictactoe_best_moves_all.csv'
-    df = pd.read_csv(PATH)
-    prod = 1
-    for best_moves_str in df['best_move_index']:
-        prod *= (len(best_moves_str)-2)
-    print(f'The total number of datasets: {prod}')
+    # PATH = 'data/datasets/tictactoe_best_moves_all.csv'
+    # df = pd.read_csv(PATH)
+    # prod = 1
+    # for best_moves_str in df['best_move_index']:
+    #     prod *= (len(best_moves_str)-2)
+    # print(f'The total number of datasets: {prod}')
 
+
+    
