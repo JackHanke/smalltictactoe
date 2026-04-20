@@ -1,21 +1,22 @@
 # Finding a small constant time solution to Tic Tac Toe
 
-Tic Tac Toe is a tiny, strongly solved game. There are countless tictactoe playing programs on GitHub, so why another one?
-
-I wanted to find a very small 
-
-So how small of a tic tac toe program can you make?
+Tic Tac Toe is a tiny, strongly solved game. There are countless tictactoe playing programs on GitHub, so why another one? Well, I want to find a *very* small constant time algorithm that is also light on memory (no hashmap). So, how small of a tic tac toe program can you make?
 
 ## Dataset(s) Creation
 
-We can still utilize the traditional minimax algorithm to create the dataset. In fact, as there are many optimal moves in a given position, there are many datasets. In total, there are a whopping 
+We can still utilize the traditional minimax algorithm to create a dataset. In fact, as there are many optimal moves in a given position, there are many datasets. 
 
-6439857835870643884080373705143292477587139607600184569006078379000335848938939781613487198112010788061176525064136126619843434758726288705759415532238805492906215634055566590360445415204503070095971798757075001653452189907595948186972686254300602709424677935786983547193342424297819905571831964141378481881196515600459725188531810521682519511323954752673078662965391022603157127086891983950752728554574000787371010493156489477644289848317838614730154082206201341877549563975950070397242723904645355546248517076577655105433928204932614328626809787028741069481208281956873738415029138717594351410622726555334595458837236665480079431832964834436606706882632794543254611478211775691822040859834183556469761886764698893091445164210558339690702632173234011812345482449776138828272691099428827658303425028602246745092541438633283519706673856893823491873177600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+## Representations
 
-number of optimal datasets.
+TODO
 
-However, you can prune 
+## Algorithm Options
 
-
-- [espresso implementation](https://github.com/classabbyamp/espresso-logic/tree/master)
+| Algorithm | Rep | Result |
+|-|-|-|
+| [Quine McCluskey Algorithm](https://en.wikipedia.org/wiki/Quine%E2%80%93McCluskey_algorithm) | | This was too slow to complete for the dataset in question, and so is |
+| [Espresso Optimizer](https://en.wikipedia.org/wiki/Espresso_heuristic_logic_minimizer) | | specifically [this implementation](https://github.com/classabbyamp/espresso-logic/tree/master) |
+| Symbolic Regression, specifically using [PySR](https://github.com/MilesCranmer/PySR)| | |
+| Neural Networks | Neural Net Rep | `826` parameters with a `(9,43,9)` net. |
+|[Deep Differentiable Logic Gate Networks](https://github.com/Felix-Petersen/difflogic) | |
 
