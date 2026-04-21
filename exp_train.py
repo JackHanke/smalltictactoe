@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchsummary import summary
+# from torchinfo import summary
 
 from data.dataset import binDataset
 from models.nn import simpleNet
@@ -67,7 +67,7 @@ def train_idividual_num(
         # if epoch % 10 == 0 or accuracy == 100.0:
             # print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
 
-        if accuracy == 100.0:
+        if accuracy == 100.0 or epoch > 750:
             return epoch
                 
 
