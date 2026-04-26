@@ -1,12 +1,31 @@
+import numpy as np
 import torch
 import pandas as pd
 from torch.utils.data import Dataset
 
+from data.reps import *
+
 class tttDataset(Dataset):
-    def __init__(self, path: str, len_rep: int):
-        self.X_data = torch.tensor(pd.read_csv(path).to_numpy()[:, :len_rep]).float()
-        self.y_data = torch.tensor(pd.read_csv(path).to_numpy()[:, len_rep:]).long().squeeze(1)
+    def __init__(self, len_rep: int, df = None, path: str = None, states_dict: dict = None):
+        if path is None and df is None and states_dict is None: raise RuntimeError('No dataframe or path passed!')
+        # if path is not None:
+        #     df = pd.read_csv(path)
+        # self.X_data = torch.tensor(df.to_numpy()[:, :len_rep]).float()
+        # self.y_data = torch.tensor(df.to_numpy()[:, len_rep:]).long().squeeze(1)
+        X, Y = [], []
+        for board_str, move in states_dict.items():
+            binary_board = binary_board_rep(board_str=board_str)
+            # one_hot_moves = one_neg_one_move_rep(move=move[0])
+            X.append(binary_board)
+            Y.append(move[0]) # TODO this needs to be fixed
+
+        X = np.array(X, dtype=np.int32)
+        Y = np.array(Y, dtype=np.int32)
+
+        self.X_data = torch.from_numpy(X).float()
+        self.y_data = torch.from_numpy(Y).long()
         self.num_datapoints = self.X_data.shape[0]
+
 
     def __len__(self):
         return self.y_data.shape[0]

@@ -1,4 +1,4 @@
-
+import random
 
 def check_winner(board):
     win_configs = [
@@ -13,7 +13,6 @@ def check_winner(board):
         return 'Tie'
     return None
 
-# minimax returns the tuple of the board's score, as well as (# winnining lines for 'X', # of drawing lines, # winning lines for 'O')
 def minimax(board, player):
     winner = check_winner(board)
     if winner == 'X': return 1, [1,0,0]
@@ -21,80 +20,145 @@ def minimax(board, player):
     if winner == 'Tie': return 0, [0,1,0]
 
     scores = []
-    moves = []
-
-    legal_moves = 0
     line_count = [0,0,0]
+    
     for i in range(9):
         if board[i] == ' ':
-            legal_moves += 1
             board[i] = player
-            score, (num_win_lines_for_x, num_draw_lines, num_win_lines_for_o) = minimax(board, 'O' if player == 'X' else 'X')
-            line_count[0] += num_win_lines_for_x
-            line_count[1] += num_draw_lines
-            line_count[2] += num_win_lines_for_o
+            score, counts = minimax(board, 'O' if player == 'X' else 'X')
+            line_count[0] += counts[0]
+            line_count[1] += counts[1]
+            line_count[2] += counts[2]
             scores.append(score)
-            moves.append(i)
             board[i] = ' '
-
-    # weight line count by depth
-    # line_count[0] = line_count[0]/legal_moves
-    # line_count[1] = line_count[1]/legal_moves
-    # line_count[2] = line_count[2]/legal_moves
-
-    max_scores = max(scores)
-    min_scores = min(scores)
 
     if player == 'X':
-        return max_scores, line_count
+        return max(scores), line_count
     else:
-        return min_scores, line_count
+        return min(scores), line_count
 
-def get_best_move(board, player):
+def get_best_move(
+        board, 
+        player: str,
+    ):
+    """
+    Finds all moves sharing the best evaluation and returns one 
+    based on the provided seed.
+    """
     best_score = -float('inf') if player == 'X' else float('inf')
-    
-    # Iterating 0 to 8 ensures the "Top-Most, Left-Most" tie-break rule
     best_moves = []
-    tie_break = 0
+    
+    # 1. Evaluate all legal moves
     for i in range(9):
         if board[i] == ' ':
             board[i] = player
-            score, (num_win_lines_for_x, num_draw_lines, num_win_lines_for_o) = minimax(board, 'O' if player == 'X' else 'X')
-            # print(board)
-            # print(score, (num_win_lines_for_x, num_draw_lines, num_win_lines_for_o))
+            # We only care about the score (index 0) for move selection
+            score, _ = minimax(board, 'O' if player == 'X' else 'X')
             board[i] = ' '
             
-            # TODO fix this horrible logic
-            if player == 'X':
-                if score > best_score:
-                    best_score = score
-                    best_moves = str(i)
-                #     if score == 0:
-                #         tie_break = num_win_lines_for_x
-                # elif score == best_score:
-                #     if score == 0:
-                #         if num_win_lines_for_x > tie_break:
-                #             tie_break = num_win_lines_for_x
-                #             best_moves = str(i)
-                #         elif num_win_lines_for_x == tie_break:
-                #             best_moves += str(i)
-                #     else:
-                #         best_moves += str(i)
+            # 2. Update best_moves list based on score
+            if (player == 'X' and score > best_score) or (player == 'O' and score < best_score):
+                best_score = score
+                best_moves = [i] # Reset list with the new best move
+            elif score == best_score:
+                best_moves.append(i) # Add to the list of tied best moves
 
-            else:
-                if score < best_score:
-                    best_score = score
-                    best_moves = str(i)
-                #     if score == 0:
-                #         tie_break = num_win_lines_for_o
-                # elif score == best_score:
-                #     if score == 0:
-                #         if num_win_lines_for_o > tie_break:
-                #             tie_break = num_win_lines_for_o
-                #             best_moves = str(i)
-                #         elif num_win_lines_for_o == tie_break:
-                #             best_moves += str(i)
-                #     else:
-                #         best_moves += str(i)
-    
     return best_moves
+
+def generate_states_helper(
+        states: dict,
+        board, 
+        player: str, 
+    ):
+    # Generate all legal reachable states from `board`
+    board_str = "".join(board)
+    if board_str in states or check_winner(board):
+        return states
+    
+    best_moves = get_best_move(
+        board=board,
+        player=player,
+    )
+    states[board_str] = best_moves
+    
+    for i in range(9):
+        if board[i] == ' ':
+            board[i] = player
+            generate_states_helper(
+                states=states,
+                board=board, 
+                player = 'O' if player == 'X' else 'X',
+            )
+            board[i] = ' '
+    
+    return states
+
+def generate_states_from_root_board(
+        board, 
+        player: str, 
+        seed: list[int] = None, 
+    ):
+    # 
+    states = {}
+    states = generate_states_helper(
+        states=states,
+        board=board,
+        player=player,
+    )
+
+    if seed is None: return states
+
+    seeded_states = {}
+    for board_idx, (board, moves) in enumerate(states.items()):
+        seeded_states[board] = [states[board][seed[board_idx]]]
+
+    return seeded_states
+
+if __name__ == '__main__':
+
+    with open('seed_options.txt', 'r') as file:
+        seed_options = [[int(line.strip()[1:-1])] for line in file.readlines()]   
+
+    print(seed_options)
+    uh = 1
+    for thing in seed_options:
+        uh *= len(thing)
+
+    print(f'number of seeds: {uh}')
+
+
+
+    all_states = generate_states_from_root_board(
+        board=[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+        player='X',
+    )
+    states_0 = generate_states_from_root_board(
+        board=['X', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+        player='O',
+    )
+    states_0[' '*9] = ('X', [0])
+    # states_1 = generate_states_from_root_board(
+    #     board=[' ', 'X', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    #     player='O',
+    # )
+    # states_1[' '*9] = ('X', [1])
+    # states_4 = generate_states_from_root_board(
+    #     board=[' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' '],
+    #     player='O',
+    # )
+    # states_4[' '*9] = ('X', [4])
+
+    hist = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
+
+    options = []
+    
+    for key, value in all_states.items(): 
+        # print(f'{key}: {value}')
+        hist[len(value)] += 1
+        options.append(value)
+
+    # print(f'options: {options}')
+
+    print(f'total points: {len(all_states)}')
+
+    for key, value in hist.items(): print(f'hist {key}: {value}')

@@ -1,0 +1,181 @@
+import numpy as np
+from tqdm import tqdm
+from datetime import datetime
+from sklearn.svm import LinearSVC
+from sklearn.tree import DecisionTreeClassifier
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from torchsummary import summary
+
+from data.reps import *
+from data.game import generate_states_from_root_board
+from data.dataset import tttDataset
+from models.nn import TicTacToeNet
+from train import train_to_perfection
+
+def svm_fit_per_output(max_iter: int = 250):
+    ''' fit an svm to each output, find the lowest classification '''
+    print(f'MAX_ITER: {max_iter}')
+
+    least_wrong = 947 # seed = 14, checked up to 5000, many seeds tie this value
+    tied_seeds = []
+    prog_bar = tqdm(range(1500, 5000))
+    prog_bar.set_description(f'Best_seed: {14} Least wrong: {947}')
+    for seed in prog_bar:
+        # generate a dataset for a given seed
+        states = generate_states_from_root_board(
+            board=['X', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            player='O',
+            seed=seed,
+        )
+        states[' '*9] = ('X', [0])
+        # turn the dataset into matrices
+        X, Y = [], []
+        for board_str, (player, move) in states.items():
+            binary_board = binary_board_rep(board_str=board_str)
+            one_hot_moves = one_neg_one_move_rep(move=move[0])
+            X.append(binary_board)
+            Y.append(one_hot_moves)
+
+        X = np.array(X, dtype=np.float32)
+        Y = np.array(Y, dtype=np.float32)
+
+        total_wrong = 0
+        for idx in range(9):
+            clf = LinearSVC(max_iter=max_iter)
+            clf.fit(X, Y[:, idx])
+            # print(f'coefs: {clf.coef_}')
+            Y_pred = clf.predict(X)
+            num_wrong = (Y_pred != Y[:, idx]).sum()
+            total_wrong += num_wrong
+
+        if total_wrong < least_wrong:
+            tied_seeds = []
+            least_wrong = total_wrong
+            prog_bar.set_description(f'Best_seed: {seed} Least wrong: {total_wrong}')
+        elif total_wrong == least_wrong:
+            tied_seeds.append(seed)
+            # print(f'Seed {seed} tied for best at {total_wrong}!')
+
+    print(f'Tied Seeds: {tied_seeds}')
+
+def dec_tree_fit_per_output():
+    ''' fit an decision tree to each dataset, find the tree with smallest node '''
+    least_nodes = float('inf') 
+    tied_seeds = []
+    prog_bar = tqdm(range(0, 1_000)) # seed 693, Nodes: 1019 Leaves: 510 Depth: 17
+    # prog_bar.set_description(f'Best_seed: {14} Least wrong: {947}')
+    for seed in prog_bar:
+        # generate a dataset for a given seed
+        states = generate_states_from_root_board(
+            board=['X', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            player='O',
+            seed=seed,
+        )
+        states[' '*9] = ('X', [0])
+        # turn the dataset into matrices
+        X, Y = [], []
+        for board_str, (player, move) in states.items():
+            binary_board = binary_board_rep(board_str=board_str)
+            # one_hot_moves = one_neg_one_move_rep(move=move[0])
+            X.append(binary_board)
+            Y.append(move[0])
+
+        X = np.array(X, dtype=np.int32)
+        Y = np.array(Y, dtype=np.int32)
+
+        clf = DecisionTreeClassifier()
+
+        clf.fit(X, Y)
+        # Y_pred = clf.predict(X)
+
+        num_nodes = clf.tree_.node_count
+
+        if num_nodes < least_nodes:
+            least_nodes = num_nodes
+            prog_bar.set_description(f'Best_seed: {seed} Nodes: {num_nodes} Leaves: {clf.get_n_leaves()} Depth: {clf.get_depth()}')
+                
+    # print(f'Tied Seeds: {tied_seeds}')
+
+def nn_friendly():
+    # find dataset seeds that are easy for a neural network to model
+
+    HIDDEN_DIM = 40 # 12
+
+    all_states = generate_states_from_root_board([' '] * 9, 'X')
+
+    # all_states = generate_states_from_root_board(
+    #     board=['X', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    #     player='O',
+    # )
+    # all_states[' '*9] = [0]
+
+    all_dataset = tttDataset(states_dict=all_states, len_rep=18)
+    # begin by assigning fixed_states to all moves with 1 option
+    fixed_states = {key:value for key, value in all_states.items() if len(value) == 1}
+
+
+    num_wrong = len(all_dataset)
+    iteration = 0
+    print(f'Iteration {iteration} length fixed states: {len(fixed_states)} / {len(all_states)}')
+    while num_wrong != 0:
+
+        model = TicTacToeNet(hidden_size=HIDDEN_DIM)
+
+        iteration += 1
+
+        dataset = tttDataset(states_dict=fixed_states, len_rep=18)
+        
+        train_to_perfection(model=model, dataset=dataset)
+
+        # evaluate how this model does on the full dataset, creating new options for dataset seeds
+        new_options = {}
+        new_fixed_states = {}
+
+        total_seed_options = 1
+        correct, num_wrong, total = 0, 0, 0
+        for board_str, moves in all_states.items():
+            if board_str not in fixed_states:
+                total += 1
+                binary_board = binary_board_rep(board_str=board_str)
+
+                board_tensor = torch.tensor(binary_board).float().unsqueeze(0)
+                prediction = torch.argmax(model(board_tensor))
+                if prediction in moves:
+                    correct += 1
+                    new_options[board_str] = [prediction.item()]
+                    new_fixed_states[board_str] = [prediction.item()]
+                else:
+                    num_wrong += 1
+                    new_options[board_str] = moves
+                    total_seed_options *= len(moves)
+            else:
+                new_options[board_str] = fixed_states[board_str]
+                new_fixed_states[board_str] = fixed_states[board_str]
+
+        fixed_states = new_fixed_states
+        
+        print(f'Iteration {iteration} correct: {correct}, total: {total}, acc: {100*correct/total:.4f}% among remaining')
+        print(f'Iteration {iteration} total seeds remaining: {total_seed_options:,}')
+        if total_seed_options < 1_000:
+            # print('new options for seeds:\n', new_options.values())
+            with open("seed_options.txt", "w") as f:
+                for value in new_options.values():
+                    f.write(str(value)+'\n')
+            break
+        print(f'Iteration {iteration} length fixed states: {len(fixed_states)} / {len(all_states)}, {len(all_states)-len(fixed_states)} left.')
+
+    # print(f' {[opts for opts in new_options if len(opts) > 1]}')
+    # print(':\n', new_options)
+
+if __name__ == '__main__':
+    # svm_fit_per_output()
+
+    # dec_tree_fit_per_output()
+
+    nn_friendly()
+
+
