@@ -1,4 +1,5 @@
 import random
+import json
 
 def check_winner(board):
     win_configs = [
@@ -116,49 +117,46 @@ def generate_states_from_root_board(
 
 if __name__ == '__main__':
 
-    with open('seed_options.txt', 'r') as file:
-        seed_options = [[int(line.strip()[1:-1])] for line in file.readlines()]   
+    with open("seed_options.json", "r") as file:
+        new_options = json.load(file)
 
-    print(seed_options)
-    uh = 1
-    for thing in seed_options:
-        uh *= len(thing)
-
-    print(f'number of seeds: {uh}')
+    print(new_options)
 
 
 
-    all_states = generate_states_from_root_board(
-        board=[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-        player='X',
-    )
-    states_0 = generate_states_from_root_board(
-        board=['X', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-        player='O',
-    )
-    states_0[' '*9] = ('X', [0])
-    # states_1 = generate_states_from_root_board(
-    #     board=[' ', 'X', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    # all_states = generate_states_from_root_board(
+    #     board=[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    #     player='X',
+    # )
+    # with open('all_states.json', 'w') as fp:
+    #     json.dump(all_states, fp)
+    # states_0 = generate_states_from_root_board(
+    #     board=['X', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
     #     player='O',
     # )
-    # states_1[' '*9] = ('X', [1])
-    # states_4 = generate_states_from_root_board(
-    #     board=[' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' '],
-    #     player='O',
-    # )
-    # states_4[' '*9] = ('X', [4])
+    # states_0[' '*9] = ('X', [0])
+    # # states_1 = generate_states_from_root_board(
+    # #     board=[' ', 'X', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    # #     player='O',
+    # # )
+    # # states_1[' '*9] = ('X', [1])
+    # # states_4 = generate_states_from_root_board(
+    # #     board=[' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' '],
+    # #     player='O',
+    # # )
+    # # states_4[' '*9] = ('X', [4])
 
-    hist = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
+    # hist = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
 
-    options = []
+    # options = []
     
-    for key, value in all_states.items(): 
-        # print(f'{key}: {value}')
-        hist[len(value)] += 1
-        options.append(value)
+    # for key, value in all_states.items(): 
+    #     # print(f'{key}: {value}')
+    #     hist[len(value)] += 1
+    #     options.append(value)
 
-    # print(f'options: {options}')
+    # # print(f'options: {options}')
 
-    print(f'total points: {len(all_states)}')
+    # print(f'total points: {len(all_states)}')
 
-    for key, value in hist.items(): print(f'hist {key}: {value}')
+    # for key, value in hist.items(): print(f'hist {key}: {value}')

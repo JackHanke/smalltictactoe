@@ -1,18 +1,29 @@
 import torch.nn as nn
 
 class TicTacToeNet(nn.Module):
-    def __init__(self, hidden_size: int, input_size: int = 18):
+    def __init__(self, hidden_sizes: list[int], input_size: int = 18):
         super(TicTacToeNet, self).__init__()
-        self.hidden_size = hidden_size
-        self.model = nn.Sequential(
-            nn.Linear(input_size, self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, 9),
-        )
+        self.hidden_sizes = hidden_sizes
+        
+        hidden_sizes = [input_size] + hidden_sizes + [9]
+        self.hidden_sizes = hidden_sizes
+
+        layers = []
+        for i, o in zip(hidden_sizes[:-1], hidden_sizes[1:]):
+            layers.append(nn.Linear(i, o))
+            layers.append(nn.ReLU()) # Add activation between layers
+        
+        # 3. Remove the last ReLU (usually not needed on the output layer)
+        layers.pop()
+            
+        self.model = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.model(x)
-        return x
+        logits = self.model(x)
+        illegal = (x[:, :9] != 0) | (x[:, 9:] != 0)
+        logits.masked_fill(illegal, float('-inf'))
+
+        return logits
     
 class simpleNet(nn.Module):
     def __init__(self, size: int):

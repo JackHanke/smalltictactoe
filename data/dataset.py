@@ -6,7 +6,14 @@ from torch.utils.data import Dataset
 from data.reps import *
 
 class tttDataset(Dataset):
-    def __init__(self, len_rep: int, df = None, path: str = None, states_dict: dict = None):
+    def __init__(
+            self, 
+            len_rep: int, 
+            board_rep_func,
+            df = None, 
+            path: str = None, 
+            states_dict: dict = None
+        ):
         if path is None and df is None and states_dict is None: raise RuntimeError('No dataframe or path passed!')
         # if path is not None:
         #     df = pd.read_csv(path)
@@ -14,7 +21,7 @@ class tttDataset(Dataset):
         # self.y_data = torch.tensor(df.to_numpy()[:, len_rep:]).long().squeeze(1)
         X, Y = [], []
         for board_str, move in states_dict.items():
-            binary_board = binary_board_rep(board_str=board_str)
+            binary_board = board_rep_func(board_str=board_str)
             # one_hot_moves = one_neg_one_move_rep(move=move[0])
             X.append(binary_board)
             Y.append(move[0]) # TODO this needs to be fixed

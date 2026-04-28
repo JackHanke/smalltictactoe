@@ -1,3 +1,4 @@
+import json
 import numpy as np
 from tqdm import tqdm
 from datetime import datetime
@@ -103,7 +104,7 @@ def dec_tree_fit_per_output():
 def nn_friendly():
     # find dataset seeds that are easy for a neural network to model
 
-    HIDDEN_DIM = 40 # 12
+    HIDDEN_DIM = 30
 
     all_states = generate_states_from_root_board([' '] * 9, 'X')
 
@@ -113,23 +114,36 @@ def nn_friendly():
     # )
     # all_states[' '*9] = [0]
 
-    all_dataset = tttDataset(states_dict=all_states, len_rep=18)
+    rep_length = 18
+    board_rep_func = binary_board_rep
+
+    all_dataset = tttDataset(
+        states_dict=all_states,
+        board_rep_func=board_rep_func,
+        len_rep=rep_length,
+    )
     # begin by assigning fixed_states to all moves with 1 option
     fixed_states = {key:value for key, value in all_states.items() if len(value) == 1}
-
 
     num_wrong = len(all_dataset)
     iteration = 0
     print(f'Iteration {iteration} length fixed states: {len(fixed_states)} / {len(all_states)}')
     while num_wrong != 0:
-
-        model = TicTacToeNet(hidden_size=HIDDEN_DIM)
-
         iteration += 1
 
-        dataset = tttDataset(states_dict=fixed_states, len_rep=18)
+        model = TicTacToeNet(hidden_sizes=[HIDDEN_DIM], input_size=rep_length)
+
+        dataset = tttDataset(
+            states_dict=fixed_states,
+            board_rep_func=board_rep_func,
+            len_rep=rep_length
+        )
         
-        train_to_perfection(model=model, dataset=dataset)
+        train_to_perfection(
+            model=model,
+            dataset=dataset,
+            save_checkpoint=False
+        )
 
         # evaluate how this model does on the full dataset, creating new options for dataset seeds
         new_options = {}
@@ -140,9 +154,9 @@ def nn_friendly():
         for board_str, moves in all_states.items():
             if board_str not in fixed_states:
                 total += 1
-                binary_board = binary_board_rep(board_str=board_str)
+                board_rep = board_rep_func(board_str=board_str)
 
-                board_tensor = torch.tensor(binary_board).float().unsqueeze(0)
+                board_tensor = torch.tensor(board_rep).float().unsqueeze(0)
                 prediction = torch.argmax(model(board_tensor))
                 if prediction in moves:
                     correct += 1
@@ -162,9 +176,8 @@ def nn_friendly():
         print(f'Iteration {iteration} total seeds remaining: {total_seed_options:,}')
         if total_seed_options < 1_000:
             # print('new options for seeds:\n', new_options.values())
-            with open("seed_options.txt", "w") as f:
-                for value in new_options.values():
-                    f.write(str(value)+'\n')
+            with open('seed_options.json', 'w') as fp:
+                json.dump(new_options, fp)
             break
         print(f'Iteration {iteration} length fixed states: {len(fixed_states)} / {len(all_states)}, {len(all_states)-len(fixed_states)} left.')
 
