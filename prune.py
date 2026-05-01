@@ -7,64 +7,34 @@ import torch.optim as optim
 import torch.nn.utils.prune as prune
 from torchsummary import summary
 
-from nn import TicTacToeNet
-from data import get_data
+from models.nn import TicTacToeNet
+from train import train_to_perfection
 
-X_data, y_data = get_data()
+def prune_train_loop(
+        model,
+        dataset,    
+    ):
 
-PATH = f'tictactoe_model.pth'
-model = TicTacToeNet()
-model.load_state_dict(torch.load(PATH))
+    gen = 0
 
-outputs = model(X_data)
-_, predicted = torch.max(outputs.data, 1)
-correct = (predicted == y_data).sum().item()
-accuracy = 100 * correct / len(y_data)
+    parameters_to_tune = (
+        (model.model[0], 'weight'),
+        (model.model[2], 'weight'),
+    )
 
-summary(model)
-print(f'Model loaded at {PATH} is {accuracy}% accurate')
+    prune.global_unstructured(
+        parameters=parameters_to_tune,
+        pruning_method=prune.L1Unstructured,
+        amount=0.01,
+    )
 
-parameters_to_prune = (
-    (model.model[0], 'weight'),
-    (model.model[2], 'weight'),
-)
+    nonzero_params = torch.sum(model.model[0] != 0) + torch.sum(model.model[2] != 0)
 
-prune.global_unstructured(
-    parameters_to_prune,
-    pruning_method=prune.L1Unstructured,
-    amount=0.05, 
-)
+    train_to_perfection(
+        model=model,
+        dataset=dataset,
+        max_epochs=None,
+        name=f'_gen{gen}_nonz{nonzero_params}'
+    )
 
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-epoch = 0
-accuracy = 0
-
-while accuracy < 100.0:
-    epoch += 1
-    
-    # Forward pass
-    outputs = model(X_data)
-    loss = criterion(outputs, y_data)
-    
-    # Backward pass and optimization
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-    
-    # Calculate accuracy
-    _, predicted = torch.max(outputs.data, 1)
-    correct = (predicted == y_data).sum().item()
-    accuracy = 100 * correct / len(y_data)
-    
-    if epoch % 100 == 0 or accuracy == 100.0:
-        print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.2f}%')
-
-print(f"\nSuccess! 0% Error achieved in {epoch} epochs.\n")
-
-for module, name in parameters_to_prune:
-    prune.remove(module, name)
-
-torch.save(model.state_dict(), 'tictactoe_model_pruned.pth')
 

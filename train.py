@@ -13,7 +13,8 @@ def train_to_perfection(
         model,
         dataset,
         max_epochs: int = None,
-        save_checkpoint: bool = True
+        save_checkpoint: bool = True,
+        name: str = '',
     ):
 
     checkpoint_time = datetime.now()
@@ -80,6 +81,6 @@ def train_to_perfection(
 
             if accuracy == 100.0 and save_checkpoint:
                 
-                checkpoint_path = f'models/checkpoints/nn_{model.hidden_sizes}_{num_params}_{checkpoint_time_str}.pth'
+                checkpoint_path = f'models/checkpoints/nn{name}_{model.hidden_sizes}_{num_params}_{checkpoint_time_str}.pth'
                 torch.save(model.state_dict(), checkpoint_path)
                 print(f'Model saved at: {checkpoint_path}')
