@@ -15,7 +15,13 @@ def train_to_perfection(
         max_epochs: int = None,
         save_checkpoint: bool = True,
         name: str = '',
+        learning_rate: float = 1e-2,
+        weight_decay: float = 0.0,
+        patience: int = 1_000,
     ):
+    model.zero_grad()
+
+    perfection_reached = False
 
     checkpoint_time = datetime.now()
     checkpoint_time_str = checkpoint_time.strftime("%Y-%m-%d-%H:%M:%S")
@@ -27,9 +33,9 @@ def train_to_perfection(
     print(f'Params: {num_params}')
 
     criterion = nn.CrossEntropyLoss()
-    LEARNING_RATE = 1e-2
-    WEIGHT_DECAY = 0
-    PATIENCE=1_000
+    LEARNING_RATE = learning_rate
+    WEIGHT_DECAY = weight_decay
+    PATIENCE = patience
 
     configs_str = f'''Configs:
     LEARNING_RATE: {LEARNING_RATE}
@@ -79,8 +85,13 @@ def train_to_perfection(
         if epoch % 100 == 0 or accuracy == 100.0:
             print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
 
-            if accuracy == 100.0 and save_checkpoint:
-                
-                checkpoint_path = f'models/checkpoints/nn{name}_{model.hidden_sizes}_{num_params}_{checkpoint_time_str}.pth'
-                torch.save(model.state_dict(), checkpoint_path)
-                print(f'Model saved at: {checkpoint_path}')
+            if accuracy == 100.0:
+                perfection_reached = True
+                if save_checkpoint:
+                    checkpoint_path = f'models/checkpoints/nn{name}_{model.hidden_sizes}_{num_params}_{checkpoint_time_str}.pth'
+                    model.zero_grad() # zero grads for file size
+                    torch.save(model.state_dict(), checkpoint_path)
+                    print(f'Model saved at: {checkpoint_path}')
+
+        if epoch == max_epochs: return perfection_reached
+    return perfection_reached

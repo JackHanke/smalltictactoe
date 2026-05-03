@@ -104,7 +104,7 @@ def dec_tree_fit_per_output():
 def nn_friendly():
     # find dataset seeds that are easy for a neural network to model
 
-    HIDDEN_DIM = 30
+    HIDDEN_DIM = 45
 
     all_states = generate_states_from_root_board([' '] * 9, 'X')
 
@@ -114,8 +114,8 @@ def nn_friendly():
     # )
     # all_states[' '*9] = [0]
 
-    rep_length = 18
-    board_rep_func = binary_board_rep
+    rep_length = 9
+    board_rep_func = trinary_board_rep
 
     all_dataset = tttDataset(
         states_dict=all_states,
@@ -176,7 +176,7 @@ def nn_friendly():
         print(f'Iteration {iteration} total seeds remaining: {total_seed_options:,}')
         if total_seed_options < 1_000:
             # print('new options for seeds:\n', new_options.values())
-            with open('seed_options.json', 'w') as fp:
+            with open(f'{rep_length}_seed_options.json', 'w') as fp:
                 json.dump(new_options, fp)
             break
         print(f'Iteration {iteration} length fixed states: {len(fixed_states)} / {len(all_states)}, {len(all_states)-len(fixed_states)} left.')
@@ -190,5 +190,3 @@ if __name__ == '__main__':
     # dec_tree_fit_per_output()
 
     nn_friendly()
-
-

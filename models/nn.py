@@ -20,7 +20,8 @@ class TicTacToeNet(nn.Module):
 
     def forward(self, x):
         logits = self.model(x)
-        illegal = (x[:, :9] != 0) | (x[:, 9:] != 0)
+        # illegal = (x[:, :9] != 0) | (x[:, 9:] != 0)
+        illegal = (x[:, :] != 0)
         logits.masked_fill(illegal, float('-inf'))
 
         return logits
