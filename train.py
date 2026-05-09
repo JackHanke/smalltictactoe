@@ -1,4 +1,6 @@
+from time import time
 from datetime import datetime
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -8,6 +10,8 @@ from torchsummary import summary
 
 from data.game import generate_states_from_root_board
 from data.dataset import tttDataset
+from models.nn import TicTacToeNet
+from data.reps import *
 
 def train_to_perfection(
         model,
@@ -83,7 +87,7 @@ def train_to_perfection(
         accuracy = 100 * correct / dataset.num_datapoints
 
         if epoch % 100 == 0 or accuracy == 100.0:
-            print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
+            print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, {correct} correct, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
 
             if accuracy == 100.0:
                 perfection_reached = True
@@ -93,5 +97,101 @@ def train_to_perfection(
                     torch.save(model.state_dict(), checkpoint_path)
                     print(f'Model saved at: {checkpoint_path}')
 
-        if epoch == max_epochs: return perfection_reached
-    return perfection_reached
+        if epoch == max_epochs: return perfection_reached, epoch, accuracy
+    return perfection_reached, epoch, accuracy
+
+
+def wiggle_to_perfection(
+        model,
+        dataset,
+        max_epochs: int = None,
+        save_checkpoint: bool = True,
+        name: str = '',
+        learning_rate: float = 1e-2,
+        weight_decay: float = 0.0,
+        patience: int = 1_000,
+    ):
+    # within each training iteration, constantly re evaluate which dataset to use
+    # for states with multiple best answers, only punish the logits that are not among the best
+    # this requires a custom loss function I think
+    # TODO
+    pass
+
+def param_acc_curve(
+        param_min: int = 2,
+        param_max: int = 15,
+        epochs: int = 500,
+        seed: int = 0,
+    ):
+    rep_length = 9
+    board_rep_func=trinary_board_rep
+    torch.manual_seed(seed)
+
+    all_states = generate_states_from_root_board([' '] * 9, 'X')
+    fixed_states = {key:value for key, value in all_states.items() if len(value) == 1}
+    # nonfixed_states = {key:value for key, value in all_states.items() if len(value) > 1}
+
+    LEARNING_RATE = 1e-3
+    WEIGHT_DECAY = 0.0
+
+    dataset = tttDataset(
+        states_dict=fixed_states,
+        board_rep_func=board_rep_func,
+        len_rep=rep_length,
+    )
+
+    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
+
+    criterion = nn.CrossEntropyLoss()
+
+    hidden_dims = list(range(param_min, param_max))
+    X, Y, Z = [], [], []
+    prog_bar = tqdm(hidden_dims)
+    for hidden_dim in prog_bar:
+        start = time()
+        model = TicTacToeNet(hidden_sizes=[hidden_dim], input_size=rep_length)
+        X.append(sum(p.numel() for p in model.parameters()))
+
+        optimizer = optim.Adam(
+            model.parameters(),
+            lr=LEARNING_RATE,
+            weight_decay=WEIGHT_DECAY,
+        )
+
+        board_rep_func = trinary_board_rep
+
+        for epoch in range(epochs):
+            for (X_data, y_data) in dataloader:
+                model.zero_grad()
+
+                outputs = model(X_data)
+                #
+                loss = criterion(outputs, y_data)
+                # Backward pass and optimization
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            predicted = torch.argmax(outputs, dim=1)
+
+            correct = (predicted == y_data).sum().item()
+
+        Y.append(correct/len(dataset))
+
+        correct, total = 0, 0
+        for board_str, moves in all_states.items():
+            total += 1
+
+            board_rep = board_rep_func(board_str=board_str)
+            board_tensor = torch.tensor(board_rep).float().unsqueeze(0)
+            prediction = torch.argmax(model(board_tensor))
+
+            if prediction in moves:
+                correct += 1
+
+        Z.append(correct/total)
+
+        prog_bar.set_description(f'Hidden: {hidden_dim} done')
+
+    return X, Y, Z
+

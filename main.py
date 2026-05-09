@@ -60,9 +60,9 @@ if __name__ == "__main__":
     #     weight_decay=0.0,
     # )
 
-    prune_train_loop(
-        model=model,
-        dataset=dataset,
-    )
+    # prune_train_loop(
+    #     model=model,
+    #     dataset=dataset,
+    # )
 
 
