@@ -103,7 +103,7 @@ def dec_tree_fit_per_output():
 
 def nn_friendly(
         all_states: dict = None,
-        hidden_dim: int = 45,
+        hidden_dim: list = [45],
         max_epochs: int = None,
     ):
     # find dataset seeds that are easy for a neural network to model
@@ -128,7 +128,7 @@ def nn_friendly(
     while num_wrong != 0:
         iteration += 1
 
-        model = TicTacToeNet(hidden_sizes=[hidden_dim], input_size=rep_length)
+        model = TicTacToeNet(hidden_sizes=hidden_dim, input_size=rep_length)
 
         dataset = tttDataset(
             states_dict=fixed_states,
@@ -177,7 +177,7 @@ def nn_friendly(
             if hidden_dim is None: name='linear'
             else: name=''
 
-            with open(f'{name}_{rep_length}_seed_options.json', 'w') as fp:
+            with open(f'data/{name}_{rep_length}_seed_options.json', 'w') as fp:
                 json.dump(new_options, fp)
             break
         print(f'Iteration {iteration} length fixed states: {len(fixed_states)} / {len(all_states)}, {len(all_states)-len(fixed_states)} left.')
@@ -264,10 +264,17 @@ def residuals_dataset():
 
 
 if __name__ == '__main__':
+    with open(f"data/residual_2162_dataset.json", "r") as file:
+        states_dict = json.load(file)
+
     # svm_fit_per_output()
 
     # dec_tree_fit_per_output()
 
-    # nn_friendly(hidden_dim=None, max_epochs=500)
+    nn_friendly(
+        hidden_dim=[17,17], 
+        max_epochs=5_000, 
+        all_states=states_dict
+    )
 
-    residuals_dataset()
+    # residuals_dataset()

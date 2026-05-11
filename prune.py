@@ -19,7 +19,7 @@ def prune_train_loop(
 
     gen = 0
     perfection_reached = True
-    fraction_to_prune = 0.15
+    fraction_to_prune = 0.10
     patience = 3
     while True:
         gen += 1
@@ -30,11 +30,11 @@ def prune_train_loop(
             (model.model[0], 'bias'),
             (model.model[2], 'weight'),
             (model.model[2], 'bias'),
+            (model.model[4], 'weight'),
+            (model.model[4], 'bias'),
         )
 
         num_params = sum(p.numel() for p in model.parameters())
-        
-
         
         if not perfection_reached or (num_params * fraction_to_prune < 1):
             gens_since_no_improvement += 1
@@ -42,19 +42,20 @@ def prune_train_loop(
             # print(model.model[0].weight_mask)
             
             # undo previous pruning NOTE so fucking hacky
-            model.model[0].weight_orig.data.copy_(current_best_state_dict['model.0.weight_orig'])
-            model.model[0].bias_orig.data.copy_(current_best_state_dict['model.0.bias_orig'])
-            model.model[0].weight_mask.data.copy_(current_best_state_dict['model.0.weight_mask'])
-            model.model[0].bias_mask.data.copy_(current_best_state_dict['model.0.bias_mask'])
-
-            model.model[2].weight_orig.data.copy_(current_best_state_dict['model.2.weight_orig'])
-            model.model[2].bias_orig.data.copy_(current_best_state_dict['model.2.bias_orig'])
-            model.model[2].weight_mask.data.copy_(current_best_state_dict['model.2.weight_mask'])
-            model.model[2].bias_mask.data.copy_(current_best_state_dict['model.2.bias_mask'])
 
             # print(model.model[0].weight_mask)
 
             if gens_since_no_improvement == patience or num_params * fraction_to_prune < 1: 
+                model.model[0].weight_orig.data.copy_(current_best_state_dict['model.0.weight_orig'])
+                model.model[0].bias_orig.data.copy_(current_best_state_dict['model.0.bias_orig'])
+                model.model[0].weight_mask.data.copy_(current_best_state_dict['model.0.weight_mask'])
+                model.model[0].bias_mask.data.copy_(current_best_state_dict['model.0.bias_mask'])
+
+                model.model[2].weight_orig.data.copy_(current_best_state_dict['model.2.weight_orig'])
+                model.model[2].bias_orig.data.copy_(current_best_state_dict['model.2.bias_orig'])
+                model.model[2].weight_mask.data.copy_(current_best_state_dict['model.2.weight_mask'])
+                model.model[2].bias_mask.data.copy_(current_best_state_dict['model.2.bias_mask'])
+
                 # make pruning permanent 
                 for (param, param_type) in parameters_to_tune:
                     prune.remove(param, param_type)
@@ -83,10 +84,12 @@ def prune_train_loop(
         nonzero_params = torch.sum(model.model[0].weight != 0) + \
             torch.sum(model.model[0].bias != 0) + \
             torch.sum(model.model[2].weight != 0) + \
-            torch.sum(model.model[2].bias != 0)
+            torch.sum(model.model[2].bias != 0) + \
+            torch.sum(model.model[4].weight != 0) + \
+            torch.sum(model.model[4].bias != 0)
         print(f'\nGen {gen} non-zero params testing: {nonzero_params}\n')
 
-        perfection_reached = train_to_perfection(
+        perfection_reached, _, _ = train_to_perfection(
             model=model,
             dataset=dataset,
             max_epochs=max_epochs,
@@ -97,8 +100,4 @@ def prune_train_loop(
         if perfection_reached:
             # save current best perfect state dict
             current_best_state_dict = model.state_dict().copy()
-
-        
-
-
 

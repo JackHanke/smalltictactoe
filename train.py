@@ -1,6 +1,7 @@
 from time import time
 from datetime import datetime
 from tqdm import tqdm
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -8,10 +9,10 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
+from data.reps import *
 from data.game import generate_states_from_root_board
 from data.dataset import tttDataset
 from models.nn import TicTacToeNet
-from data.reps import *
 
 def train_to_perfection(
         model,
@@ -22,6 +23,7 @@ def train_to_perfection(
         learning_rate: float = 1e-2,
         weight_decay: float = 0.0,
         patience: int = 1_000,
+        one_right_answer: bool = True,
     ):
     model.zero_grad()
 
@@ -83,7 +85,20 @@ def train_to_perfection(
         
         predicted = torch.argmax(outputs, dim=1)
 
-        correct += (predicted == y_data).sum().item()
+        if one_right_answer:
+            correct += (predicted == y_data).sum().item()
+        else:
+            correct, total = 0, 0
+            for board_str, moves in dataset.all_states.items():
+                total += 1
+
+                board_rep = dataset.board_rep_func(board_str=board_str)
+                board_tensor = torch.tensor(board_rep).float().unsqueeze(0)
+                prediction = torch.argmax(model(board_tensor))
+
+                if prediction in moves:
+                    correct += 1
+                    
         accuracy = 100 * correct / dataset.num_datapoints
 
         if epoch % 100 == 0 or accuracy == 100.0:
@@ -140,6 +155,13 @@ def param_acc_curve(
         len_rep=rep_length,
     )
 
+    all_dataset = []
+    for board_str, moves in all_states.items():
+        binary_board = board_rep_func(board_str=board_str)
+        all_dataset.append(binary_board)
+    all_dataset = np.array(all_dataset, dtype=np.int32)
+    all_dataset = torch.from_numpy(all_dataset).float()
+
     dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
 
     criterion = nn.CrossEntropyLoss()
@@ -179,19 +201,17 @@ def param_acc_curve(
         Y.append(correct/len(dataset))
 
         correct, total = 0, 0
-        for board_str, moves in all_states.items():
+
+        predictions = torch.argmax(model(all_dataset), dim=1)
+
+        for idx, (board_str, moves) in enumerate(all_states.items()):
             total += 1
-
-            board_rep = board_rep_func(board_str=board_str)
-            board_tensor = torch.tensor(board_rep).float().unsqueeze(0)
-            prediction = torch.argmax(model(board_tensor))
-
-            if prediction in moves:
+            if predictions[idx] in moves:
                 correct += 1
 
         Z.append(correct/total)
 
-        prog_bar.set_description(f'Hidden: {hidden_dim} done')
+        prog_bar.set_description(f'Seed: {seed}, Hidden: {hidden_dim}')
 
-    return X, Y, Z
+    return X, Y, Z, model
 

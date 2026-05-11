@@ -40,6 +40,40 @@ class tttDataset(Dataset):
     def __getitem__(self, idx: int):
         return self.X_data[idx], self.y_data[idx]
 
+class alltttDataset(Dataset):
+    def __init__(
+            self, 
+            len_rep: int, 
+            board_rep_func,
+            states_dict: dict = None
+        ):
+        X, Y = [], []
+        for board_str, moves in states_dict.items():
+            binary_board = board_rep_func(board_str=board_str)
+            # one_hot_moves = one_neg_one_move_rep(move=move[0])
+            X.append(binary_board)
+
+            y = np.zeros(9)
+            for move in moves:
+                y[move] = 1/len(moves)
+
+            Y.append(y) # TODO this needs to be fixed
+
+        X = np.array(X, dtype=np.int32)
+        Y = np.array(Y, dtype=np.int32)
+
+        self.board_rep_func = board_rep_func
+        self.all_states = states_dict
+        self.X_data = torch.from_numpy(X).float()
+        self.y_data = torch.from_numpy(Y).float()
+        self.num_datapoints = self.X_data.shape[0]
+
+    def __len__(self):
+        return self.y_data.shape[0]
+
+    def __getitem__(self, idx: int):
+        return self.X_data[idx], self.y_data[idx]
+
 class binDataset(Dataset):
     def __init__(self, num: int, length: int):
         ''' 
