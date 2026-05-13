@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchsummary import summary
 
 from data.reps import *
 from data.game import generate_states_from_root_board
@@ -17,6 +16,7 @@ from models.nn import TicTacToeNet
 def train_to_perfection(
         model,
         dataset,
+        device,
         max_epochs: int = None,
         save_checkpoint: bool = True,
         name: str = '',
@@ -70,6 +70,8 @@ def train_to_perfection(
 
         correct = 0
         for (X_data, y_data) in dataloader:
+            X_data = X_data.to(device)
+            y_data = y_data.to(device)
             #
             outputs = model(X_data)
             #

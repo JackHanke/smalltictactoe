@@ -14,6 +14,17 @@ def check_winner(board):
         return 'Tie'
     return None
 
+def check_one_away_winner(board, player):
+    result = None
+    for i in range(9):
+        if board[i] == ' ':
+            board[i] = player
+            winner = check_winner(board)
+            if winner is not None or winner != 'Tie':
+                result = winner
+            board[i] = ' '
+    return result
+
 def minimax(board, player):
     winner = check_winner(board)
     if winner == 'X': return 1, [1,0,0]
@@ -73,7 +84,7 @@ def generate_states_helper(
     ):
     # Generate all legal reachable states from `board`
     board_str = "".join(board)
-    if board_str in states or check_winner(board):
+    if board_str in states or check_winner(board) or check_one_away_winner(board, player):
         return states
     
     best_moves = get_best_move(
@@ -117,17 +128,17 @@ def generate_states_from_root_board(
 
 if __name__ == '__main__':
 
-    with open("seed_options.json", "r") as file:
-        new_options = json.load(file)
+    # with open("seed_options.json", "r") as file:
+    #     new_options = json.load(file)
 
-    print(new_options)
+    # print(new_options)
 
 
 
-    # all_states = generate_states_from_root_board(
-    #     board=[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-    #     player='X',
-    # )
+    all_states = generate_states_from_root_board(
+        board=[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+        player='X',
+    )
     # with open('all_states.json', 'w') as fp:
     #     json.dump(all_states, fp)
     # states_0 = generate_states_from_root_board(
@@ -146,17 +157,20 @@ if __name__ == '__main__':
     # # )
     # # states_4[' '*9] = ('X', [4])
 
-    # hist = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
+    hist = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
 
     # options = []
     
-    # for key, value in all_states.items(): 
-    #     # print(f'{key}: {value}')
-    #     hist[len(value)] += 1
+    for key, value in all_states.items(): 
+        print(f'{key}: {value}')
+        hist[len(value)] += 1
     #     options.append(value)
 
     # # print(f'options: {options}')
 
     # print(f'total points: {len(all_states)}')
 
-    # for key, value in hist.items(): print(f'hist {key}: {value}')
+    for key, value in hist.items(): print(f'hist {key}: {value}')
+    print(f'Total datapoints: {len(all_states)}')
+
+    
