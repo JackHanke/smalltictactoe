@@ -84,7 +84,7 @@ def generate_states_helper(
     ):
     # Generate all legal reachable states from `board`
     board_str = "".join(board)
-    if board_str in states or check_winner(board) or check_one_away_winner(board, player):
+    if board_str in states or check_winner(board): # or check_one_away_winner(board, player):
         return states
     
     best_moves = get_best_move(
@@ -157,20 +157,32 @@ if __name__ == '__main__':
     # # )
     # # states_4[' '*9] = ('X', [4])
 
-    hist = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
+    # hist = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
+    hist = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0}
 
     # options = []
     
     for key, value in all_states.items(): 
         print(f'{key}: {value}')
-        hist[len(value)] += 1
+        if len(value) == 1:
+            hist[int(value[0])] += 1
     #     options.append(value)
 
     # # print(f'options: {options}')
 
     # print(f'total points: {len(all_states)}')
 
-    for key, value in hist.items(): print(f'hist {key}: {value}')
+    hist_tot = 0
+    for key, value in hist.items(): 
+        print(f'hist {key}: {value}')
+        hist_tot += value
+    print(f'Total for hist: {hist_tot}')
+    print(len({key:val for key, val in all_states.items() if len(val) == 1}))
     print(f'Total datapoints: {len(all_states)}')
+
+
+    import json
+    with open('data/fixed_states.json', 'w') as f:
+        json.dump({key:val for key, val in all_states.items() if len(val) == 1}, f)
 
     
