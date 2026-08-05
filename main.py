@@ -13,7 +13,7 @@ from data.game import generate_states_from_root_board
 if __name__ == "__main__":
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    HIDDEN_DIMS = [30]
+    HIDDEN_DIMS = [2]
     rep_length = 9
     # board_rep_func = binary_board_rep
     board_rep_func = trinary_board_rep
@@ -57,17 +57,17 @@ if __name__ == "__main__":
 
     # print(f'Hidden dims: {HIDDEN_DIMS}')
 
-    # train_to_perfection(
-    #     model=model,
-    #     dataset=dataset,
-    #     max_epochs=25_000,
-    #     weight_decay=0.0,
-    #     one_right_answer=True,
-    #     device=DEVICE,
-    # )
-
-    prune_train_loop(
+    train_to_perfection(
         model=model,
         dataset=dataset,
+        max_epochs=25_000,
+        weight_decay=0.0,
+        one_right_answer=True,
         device=DEVICE,
     )
+
+    # prune_train_loop(
+    #     model=model,
+    #     dataset=dataset,
+    #     device=DEVICE,
+    # )
