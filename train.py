@@ -22,7 +22,6 @@ def train_to_perfection(
         name: str = '',
         learning_rate: float = 1e-2,
         weight_decay: float = 0.0,
-        patience: int = 1_000,
         one_right_answer: bool = True,
     ):
     model.zero_grad()
@@ -36,19 +35,17 @@ def train_to_perfection(
     dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
 
     num_params = sum(p.numel() for p in model.parameters())
-    print(f'Params: {num_params}')
+    # print(f'Params: {num_params}')
 
     criterion = nn.CrossEntropyLoss()
     LEARNING_RATE = learning_rate
     WEIGHT_DECAY = weight_decay
-    PATIENCE = patience
 
-    configs_str = f'''Configs:
-    LEARNING_RATE: {LEARNING_RATE}
-    WEIGHT_DECAY: {WEIGHT_DECAY}
-    PATIENCE: {PATIENCE}
-    '''
-    print(configs_str)
+    # configs_str = f'''Configs:
+    # LEARNING_RATE: {LEARNING_RATE}
+    # WEIGHT_DECAY: {WEIGHT_DECAY}
+    # '''
+    # print(configs_str)
 
     optimizer = optim.Adam(
         model.parameters(),
@@ -56,10 +53,11 @@ def train_to_perfection(
         weight_decay=WEIGHT_DECAY
     )
 
-    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.5)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    scheduler = optim.lr_scheduler.LinearLR(
         optimizer,
-        patience=PATIENCE
+        start_factor=1.0,
+        end_factor=0.001,
+        total_iters=max_epochs
     )
 
     # train to dataset where there is only one option
@@ -83,7 +81,7 @@ def train_to_perfection(
 
             # correct += ((outputs >= 0.5) == (y_data == 1)).all(dim=1).sum().item()
         
-        scheduler.step(metrics=loss)
+        scheduler.step()
         
         predicted = torch.argmax(outputs, dim=1)
 
@@ -115,6 +113,7 @@ def train_to_perfection(
                     print(f'Model saved at: {checkpoint_path}')
 
         if epoch == max_epochs: return perfection_reached, epoch, accuracy
+    
     return perfection_reached, epoch, accuracy
 
 

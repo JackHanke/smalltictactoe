@@ -13,18 +13,63 @@ from data.game import generate_states_from_root_board
 if __name__ == "__main__":
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    HIDDEN_DIMS = [2]
-    rep_length = 9
-    # board_rep_func = binary_board_rep
-    board_rep_func = trinary_board_rep
-    model = TicTacToeNet(hidden_sizes=HIDDEN_DIMS, input_size=rep_length).to(DEVICE)
-    # model = routerNet(hidden_sizes=HIDDEN_DIMS, input_size=rep_length)
-
-    PATH = 'models/checkpoints/nn_[9, 30, 9]_579_2026-05-12-22:34:28.pth'
-    model.load_state_dict(torch.load(PATH, weights_only=True))
-
     with open("data/_9_seed_options.json", "r") as file:
         states_dict = json.load(file)
+
+    results_dict = {}
+    for num_layers in [1,2]:
+        for board_rep_func, rep_length in [(binary_board_rep, 18), (trinary_board_rep, 9)]:
+            for do_illegal_move_masking in [False, True]:
+                start_hidden_dim = 35
+                best_params = float('inf')
+                perfection_reached = True
+                while perfection_reached:
+                    model = TicTacToeNet(
+                        hidden_sizes=[start_hidden_dim for _ in range(num_layers)],
+                        input_size=rep_length,
+                        do_illegal_move_masking=do_illegal_move_masking,
+                    ).to(DEVICE)
+
+                    dataset = tttDataset(
+                        states_dict=states_dict,
+                        board_rep_func=board_rep_func,
+                        len_rep=rep_length,
+                    )   
+
+                    num_params = sum(p.numel() for p in model.parameters())
+
+                    perfection_reached, epoch, accuracy = train_to_perfection(
+                        model=model,
+                        dataset=dataset,
+                        max_epochs=10_000,
+                        weight_decay=0.0,
+                        one_right_answer=True,
+                        device=DEVICE,
+                    )
+
+                    if perfection_reached:
+                        best_params = num_params
+                        start_hidden_dim -= 1
+
+                results_dict[f'{num_layers}_{rep_length}_{do_illegal_move_masking}'] = best_params
+                print(f'> layers: {num_layers} replen: {rep_length} masking: {do_illegal_move_masking} | {best_params}')
+
+
+
+
+
+    # HIDDEN_DIMS = [2]
+    # rep_length = 9
+    # # board_rep_func = binary_board_rep
+    # board_rep_func = trinary_board_rep
+    # model = TicTacToeNet(hidden_sizes=HIDDEN_DIMS, input_size=rep_length).to(DEVICE)
+    # model = routerNet(hidden_sizes=HIDDEN_DIMS, input_size=rep_length)
+
+    # PATH = 'models/checkpoints/nn_[9, 30, 9]_579_2026-05-12-22:34:28.pth'
+    # model.load_state_dict(torch.load(PATH, weights_only=True))
+
+    # with open("data/_9_seed_options.json", "r") as file:
+    #     states_dict = json.load(file)
 
 
     # states_dict = {}
@@ -49,22 +94,22 @@ if __name__ == "__main__":
     #     board_rep_func=board_rep_func,
     #     len_rep=rep_length,
     # )    
-    dataset = tttDataset(
-        states_dict=states_dict,
-        board_rep_func=board_rep_func,
-        len_rep=rep_length,
-    )    
+    # dataset = tttDataset(
+    #     states_dict=states_dict,
+    #     board_rep_func=board_rep_func,
+    #     len_rep=rep_length,
+    # )    
 
     # print(f'Hidden dims: {HIDDEN_DIMS}')
 
-    train_to_perfection(
-        model=model,
-        dataset=dataset,
-        max_epochs=25_000,
-        weight_decay=0.0,
-        one_right_answer=True,
-        device=DEVICE,
-    )
+    # train_to_perfection(
+    #     model=model,
+    #     dataset=dataset,
+    #     max_epochs=10_000,
+    #     weight_decay=0.0,
+    #     one_right_answer=True,
+    #     device=DEVICE,
+    # )
 
     # prune_train_loop(
     #     model=model,
