@@ -102,7 +102,7 @@ def train_to_perfection(
         accuracy = 100 * correct / dataset.num_datapoints
 
         if epoch % 100 == 0 or accuracy == 100.0:
-            print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, {correct} correct, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
+            # print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, {correct} correct, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
 
             if accuracy == 100.0:
                 perfection_reached = True

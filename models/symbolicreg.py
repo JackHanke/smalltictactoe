@@ -3,8 +3,8 @@ import pandas as pd
 from pysr import PySRRegressor
 
 model = PySRRegressor(
-    maxsize=300,
-    niterations=200,  # < Increase me for better results
+    maxsize=400,
+    niterations=300,  # < Increase me for better results
     binary_operators=["+", "*"],
     unary_operators=[
         "cos",

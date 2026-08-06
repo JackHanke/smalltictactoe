@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -5,6 +6,7 @@ class TicTacToeNet(nn.Module):
     def __init__(self, hidden_sizes: list[int], input_size: int = 18, do_illegal_move_masking: bool = True):
         super(TicTacToeNet, self).__init__()
         self.do_illegal_move_masking = do_illegal_move_masking
+        self.input_size = input_size
         
         layers = []
         if hidden_sizes[0] is None:
@@ -38,8 +40,14 @@ class TicTacToeNet(nn.Module):
         # y = y + self.relu(self.fc_3(y))
         # y = self.fc_4(y)
         if self.do_illegal_move_masking:
-            illegal = (x[:, :] != 0)
-            y.masked_fill(illegal, float('-inf'))
+            if self.input_size == 9:
+                illegal = (x[:, :] != 0)
+                y.masked_fill(illegal, float('-inf'))
+            elif self.input_size == 18:
+                illegal = torch.bitwise_or((x[:, :9] != 0), (x[:, 9:] != 0))
+                y.masked_fill(illegal, float('-inf'))
+            else:
+                raise 'Something went wrong with illegal move masking.'
         return y
 
 
