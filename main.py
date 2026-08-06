@@ -21,7 +21,7 @@ if __name__ == "__main__":
     results_dict = {}
     for num_layers in [1,2]:
         for board_rep_func, rep_length in [(binary_board_rep, 18), (trinary_board_rep, 9)]:
-            for do_illegal_move_masking in [False, True]:
+            for do_illegal_move_masking in [True]:
                 start_hidden_dim = 35
                 best_params = float('inf')
 
@@ -80,13 +80,13 @@ if __name__ == "__main__":
     '''
     RESULTS:::
     > layers: 1 replen: 18 masking: False | 765
-    > layers: 1 replen: 18 masking: True | 765
+    > layers: 1 replen: 18 masking: True | 597
     > layers: 1 replen: 9 masking: False | 598
-    > layers: 1 replen: 9 masking: True | 598
+    > layers: 1 replen: 9 masking: True | 541
     > layers: 2 replen: 18 masking: False | 1205
-    > layers: 2 replen: 18 masking: True | 1205
+    > layers: 2 replen: 18 masking: True | 855
     > layers: 2 replen: 9 masking: False | 870
-    > layers: 2 replen: 9 masking: True | 870
+    > layers: 2 replen: 9 masking: True | 693    
     '''
 
 

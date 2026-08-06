@@ -42,10 +42,10 @@ class TicTacToeNet(nn.Module):
         if self.do_illegal_move_masking:
             if self.input_size == 9:
                 illegal = (x[:, :] != 0)
-                y.masked_fill(illegal, float('-inf'))
+                y = y.masked_fill(illegal, float('-inf'))
             elif self.input_size == 18:
                 illegal = torch.bitwise_or((x[:, :9] != 0), (x[:, 9:] != 0))
-                y.masked_fill(illegal, float('-inf'))
+                y = y.masked_fill(illegal, float('-inf'))
             else:
                 raise 'Something went wrong with illegal move masking.'
         return y
