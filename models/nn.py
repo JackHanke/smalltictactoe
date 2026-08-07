@@ -3,7 +3,11 @@ import torch.nn as nn
 
 
 class TicTacToeNet(nn.Module):
-    def __init__(self, hidden_sizes: list[int], input_size: int = 18, do_illegal_move_masking: bool = True):
+    def __init__(self,
+            hidden_sizes: list[int],
+            input_size: int = 18,
+            do_illegal_move_masking: bool = True
+        ):
         super(TicTacToeNet, self).__init__()
         self.do_illegal_move_masking = do_illegal_move_masking
         self.input_size = input_size

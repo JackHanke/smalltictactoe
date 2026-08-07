@@ -72,7 +72,7 @@ def prune_train_loop(
                 for (param, param_type) in parameters_to_tune:
                     prune.remove(param, param_type)
 
-                checkpoint_path = f'models/checkpoints/nn_gen{gen}_nonz{nonzero_params}_{model.hidden_sizes}.pth'
+                checkpoint_path = f'models/checkpoints/pruning/nn_nonz_{nonzero_params}_{num_params}_{model.hidden_sizes}.pth'
                 model.zero_grad() # zero grads for file size
                 torch.save(model.state_dict(), checkpoint_path)
                 return
