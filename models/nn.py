@@ -26,32 +26,51 @@ class TicTacToeNet(nn.Module):
                 layers.append(nn.ReLU()) # Add activation between layers
             # 3. Remove the last ReLU (usually not needed on the output layer)
             layers.pop()
+        # self.layers = layers
         
         self.model = nn.Sequential(*layers)
+        # self.relu = nn.ReLU(inplace=True)
 
-        # self.fc_1 = nn.Linear(9, hidden_sizes[1])
-        # self.fc_2 = nn.Linear(hidden_sizes[1], hidden_sizes[2])
-        # self.fc_3 = nn.Linear(hidden_sizes[2], hidden_sizes[3])
-        # self.fc_4 = nn.Linear(hidden_sizes[3], 9)
-        # self.relu = nn.ReLU()
+
+        # depth = 13
+        # print(f'NOTE YOU HARDCODED THE RESNET ARCH!')
+        # self.lay0 = nn.Linear(9,depth)
+        # self.lay1 = nn.Linear(depth,depth)
+        # self.lay2 = nn.Linear(depth,depth)
+        # self.lay3 = nn.Linear(depth,depth)
+        # self.lay4 = nn.Linear(depth,depth)
+        # self.lay5 = nn.Linear(depth,depth)
+        # self.lay6 = nn.Linear(depth,depth)
+        # self.lay7 = nn.Linear(depth,depth)
+        # self.lay8 = nn.Linear(depth,depth)
+        # self.lay9 = nn.Linear(depth,9)
 
 
     def forward(self, x):
         y = self.model(x)
 
-        # y = self.relu(self.fc_1(x))
-        # y = y + self.relu(self.fc_2(y))
-        # y = y + self.relu(self.fc_3(y))
-        # y = self.fc_4(y)
+        
+        # x = torch.nn.functional.relu(self.lay0(x))
+        # x = x + torch.nn.functional.relu(self.lay1(x))
+        # x = x + torch.nn.functional.relu(self.lay2(x))
+        # x = x + torch.nn.functional.relu(self.lay3(x))
+        # x = x + torch.nn.functional.relu(self.lay4(x))
+        # x = x + torch.nn.functional.relu(self.lay5(x))
+        # x = x + torch.nn.functional.relu(self.lay6(x))
+        # x = torch.nn.functional.relu(self.lay7(x))
+        # x = torch.nn.functional.relu(self.lay8(x))
+        # x = torch.nn.functional.relu(self.lay9(x))
+        # y = x
+
         if self.do_illegal_move_masking:
-            if self.input_size == 9:
-                illegal = (x[:, :] != 0)
+            if self.input_size == 9 or self.input_size == 17:
+                illegal = (x[:, :9] != 0)
                 y = y.masked_fill(illegal, float('-inf'))
             elif self.input_size == 18:
                 illegal = torch.bitwise_or((x[:, :9] != 0), (x[:, 9:] != 0))
                 y = y.masked_fill(illegal, float('-inf'))
             else:
-                raise 'Something went wrong with illegal move masking.'
+                raise Exception('Something went wrong with illegal move masking.')
         return y
 
 
@@ -84,15 +103,15 @@ class routerNet(nn.Module):
     
 
 
-class simpleNet(nn.Module):
-    def __init__(self, size: int):
-        super(simpleNet, self).__init__()
-        self.size = size
-        self.model = nn.Sequential(
-            nn.Linear(self.size, self.size),
-            nn.SiLU(),
-            nn.Linear(self.size, 2),
-        )
-    def forward(self, x):
-        x = self.model(x)
-        return x
+# class simpleNet(nn.Module):
+#     def __init__(self, size: int):
+#         super(simpleNet, self).__init__()
+#         self.size = size
+#         self.model = nn.Sequential(
+#             nn.Linear(self.size, self.size),
+#             nn.SiLU(),
+#             nn.Linear(self.size, 2),
+#         )
+#     def forward(self, x):
+#         x = self.model(x)
+#         return x

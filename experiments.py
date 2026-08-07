@@ -99,7 +99,7 @@ def smallest_possible_experiment():
     with open("data/_9_seed_options.json", "r") as file:
         states_dict = json.load(file)
 
-    start_hidden_dim = 23
+    start_hidden_dim = 20
     num_layers = 1
     best_params = float('inf')
 
@@ -107,14 +107,16 @@ def smallest_possible_experiment():
 
     seed_found = True
     while seed_found:
-        print(f'Testing hidden_dim: {start_hidden_dim}...')
         seed_found = False
-        for seed in tqdm(range(500,600)):
+        prog = tqdm(range(500,600))
+        for seed in prog:
+            prog.set_description(f'Seed: {seed}')
             random.seed(seed)
             np.random.seed(seed)       
             torch.manual_seed(seed)
 
-            board_rep_func, rep_length = (trinary_board_rep, 9)
+            # board_rep_func, rep_length = (trinary_board_rep, 9)
+            board_rep_func, rep_length = (trinary_plus_sym_board_rep, 17)
             do_illegal_move_masking = True
 
             hidden_sizes = [start_hidden_dim for _ in range(num_layers)]
@@ -131,6 +133,7 @@ def smallest_possible_experiment():
             )   
 
             num_params = sum(p.numel() for p in model.parameters())
+            print(f'Testing hidden_dim: {start_hidden_dim}, params {num_params}...')
 
             seed_perfection_reached, epoch, accuracy = train_to_perfection(
                 model=model,
@@ -157,3 +160,6 @@ def smallest_possible_experiment():
             start_hidden_dim -= 1
 
     print(f'Best params from seed hunt: {best_params}')
+
+if __name__ == '__main__':
+    smallest_possible_experiment()

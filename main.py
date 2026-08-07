@@ -14,20 +14,22 @@ from experiments import *
 if __name__ == "__main__":
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    HIDDEN_DIMS = [23]
-    PATH = 'models/checkpoints/smallest_possible_experiment/nn_446_[23]_1_9_True_521.pth'
+    num_layers = 3
+    HIDDEN_DIMS = [14 for _ in range(num_layers)]
     rep_length = 9
     board_rep_func = trinary_board_rep
     model = TicTacToeNet(
         hidden_sizes=HIDDEN_DIMS,
         input_size=rep_length
     ).to(DEVICE)
-    # model = routerNet(hidden_sizes=HIDDEN_DIMS, input_size=rep_length)
-
-    model.load_state_dict(torch.load(PATH, weights_only=True))
+    num_params = sum(p.numel() for p in model.parameters())
+    print(f'Model parameters: {num_params}')
+    # PATH = 'models/checkpoints/smallest_possible_experiment/nn_446_[23]_1_9_True_521.pth'
+    # model.load_state_dict(torch.load(PATH, weights_only=True))
 
     with open("data/_9_seed_options.json", "r") as file:
         states_dict = json.load(file)
+    print(f'Datapoints: {len(states_dict)}')
 
 
     # states_dict = {}
@@ -60,17 +62,18 @@ if __name__ == "__main__":
 
     # print(f'Hidden dims: {HIDDEN_DIMS}')
 
-    #train_to_perfection(
-    #     model=model,
-    #     dataset=dataset,
-    #     max_epochs=10_000,
-    #     weight_decay=0.0,
-    #     one_right_answer=True,
-    #     device=DEVICE,
-    # )
-
-    prune_train_loop(
+    train_to_perfection(
         model=model,
         dataset=dataset,
+        max_epochs=10_000,
+        weight_decay=0.0,
+        one_right_answer=False,
+        learning_rate=1e-2,
         device=DEVICE,
     )
+
+    # prune_train_loop(
+    #     model=model,
+    #     dataset=dataset,
+    #     device=DEVICE,
+    # )

@@ -2,6 +2,7 @@ from time import time
 from datetime import datetime
 from tqdm import tqdm
 import numpy as np
+import json
 
 import torch
 import torch.nn as nn
@@ -24,6 +25,9 @@ def train_to_perfection(
         weight_decay: float = 0.0,
         one_right_answer: bool = True,
     ):
+    with open("data/all_states.json", "r") as file:
+        all_states_dict = json.load(file)
+
     model.zero_grad()
 
     perfection_reached = False
@@ -89,12 +93,14 @@ def train_to_perfection(
             correct += (predicted == y_data).sum().item()
         else:
             correct, total = 0, 0
-            for board_str, moves in dataset.all_states.items():
+            for board_idx, (board_str, moves) in enumerate(all_states_dict.items()):
                 total += 1
 
-                board_rep = dataset.board_rep_func(board_str=board_str)
-                board_tensor = torch.tensor(board_rep).float().unsqueeze(0)
-                prediction = torch.argmax(model(board_tensor))
+                # board_rep = dataset.board_rep_func(board_str=board_str)
+                # board_tensor = torch.tensor(board_rep).float().unsqueeze(0)
+                # prediction = torch.argmax(model(board_tensor))
+
+                prediction = predicted[board_idx] # NOTE assumes states are in the same order
 
                 if prediction in moves:
                     correct += 1
@@ -102,7 +108,7 @@ def train_to_perfection(
         accuracy = 100 * correct / dataset.num_datapoints
 
         if epoch % 100 == 0 or accuracy == 100.0:
-            # print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, {correct} correct, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
+            print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, {correct} correct, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
 
             if accuracy == 100.0:
                 perfection_reached = True
@@ -111,6 +117,7 @@ def train_to_perfection(
                     model.zero_grad() # zero grads for file size
                     torch.save(model.state_dict(), checkpoint_path)
                     print(f'Model saved at: {checkpoint_path}')
+                    print(f'Loss: {loss.item():.5f}')
 
         if epoch == max_epochs: return perfection_reached, epoch, accuracy
     

@@ -14,6 +14,7 @@ class tttDataset(Dataset):
             path: str = None, 
             states_dict: dict = None
         ):
+        self.board_rep_func = board_rep_func
         if path is None and df is None and states_dict is None: raise RuntimeError('No dataframe or path passed!')
         # if path is not None:
         #     df = pd.read_csv(path)
