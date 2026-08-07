@@ -14,10 +14,8 @@ from experiments import *
 if __name__ == "__main__":
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # smallest_possible_experiment()
-
-    HIDDEN_DIMS = [16,16]
-    PATH = '/home/jack/vault/software/smalltictactoe/models/checkpoints/smallest_possible_experiment/nn_585_[16, 16]_2_9_True_1.pth'
+    HIDDEN_DIMS = [23]
+    PATH = 'models/checkpoints/smallest_possible_experiment/nn_446_[23]_1_9_True_521.pth'
     rep_length = 9
     board_rep_func = trinary_board_rep
     model = TicTacToeNet(
@@ -62,7 +60,7 @@ if __name__ == "__main__":
 
     # print(f'Hidden dims: {HIDDEN_DIMS}')
 
-    # train_to_perfection(
+    #train_to_perfection(
     #     model=model,
     #     dataset=dataset,
     #     max_epochs=10_000,

@@ -99,7 +99,8 @@ def smallest_possible_experiment():
     with open("data/_9_seed_options.json", "r") as file:
         states_dict = json.load(file)
 
-    start_hidden_dim = 17
+    start_hidden_dim = 23
+    num_layers = 1
     best_params = float('inf')
 
     num_seeds = 30
@@ -108,12 +109,11 @@ def smallest_possible_experiment():
     while seed_found:
         print(f'Testing hidden_dim: {start_hidden_dim}...')
         seed_found = False
-        for seed in tqdm(range(50)):
+        for seed in tqdm(range(500,600)):
             random.seed(seed)
             np.random.seed(seed)       
             torch.manual_seed(seed)
 
-            num_layers = 2
             board_rep_func, rep_length = (trinary_board_rep, 9)
             do_illegal_move_masking = True
 
