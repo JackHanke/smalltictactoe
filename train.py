@@ -25,7 +25,7 @@ def train_to_perfection(
         weight_decay: float = 0.0,
         one_right_answer: bool = True,
     ):
-    with open("data/all_states.json", "r") as file:
+    with open("data/datasets/jsons/all_states.json", "r") as file:
         all_states_dict = json.load(file)
 
     model.zero_grad()
@@ -70,7 +70,6 @@ def train_to_perfection(
     while accuracy < 100.0:
         epoch += 1
 
-        correct = 0
         for (X_data, y_data) in dataloader:
             X_data = X_data.to(device)
             y_data = y_data.to(device)
@@ -83,32 +82,35 @@ def train_to_perfection(
             loss.backward()
             optimizer.step()
 
-            # correct += ((outputs >= 0.5) == (y_data == 1)).all(dim=1).sum().item()
-        
         scheduler.step()
         
         predicted = torch.argmax(outputs, dim=1)
 
+        current_dataset_correct += (predicted == y_data).sum().item()
         if one_right_answer:
-            correct += (predicted == y_data).sum().item()
+            correct = current_dataset_correct
         else:
-            correct, total = 0, 0
+            # find points predictions that are wrong for the training dataset but are still correct among all possible moves
+            wrong_indices = torch.nonzero(predicted != y_data, as_tuple=False)
+
+            all_states_correct = 0
             for board_idx, (board_str, moves) in enumerate(all_states_dict.items()):
-                total += 1
+                if board_idx in wrong_indices:
 
-                # board_rep = dataset.board_rep_func(board_str=board_str)
-                # board_tensor = torch.tensor(board_rep).float().unsqueeze(0)
-                # prediction = torch.argmax(model(board_tensor))
+                    # board_rep = dataset.board_rep_func(board_str=board_str)
+                    # board_tensor = torch.tensor(board_rep).float().unsqueeze(0)
+                    # prediction = torch.argmax(model(board_tensor))
 
-                prediction = predicted[board_idx] # NOTE assumes states are in the same order
+                    # NOTE assumes states are in the same order
+                    if predicted[board_idx] in moves:
+                        all_states_correct += 1
 
-                if prediction in moves:
-                    correct += 1
-                    
+            correct += all_states_correct
+
         accuracy = 100 * correct / dataset.num_datapoints
 
         if epoch % 100 == 0 or accuracy == 100.0:
-            print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, {correct} correct, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
+            print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, Correct (Dataset/All): {current_dataset_correct} / {correct}, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
 
             if accuracy == 100.0:
                 perfection_reached = True
@@ -122,23 +124,6 @@ def train_to_perfection(
         if epoch == max_epochs: return perfection_reached, epoch, accuracy
     
     return perfection_reached, epoch, accuracy
-
-
-def wiggle_to_perfection(
-        model,
-        dataset,
-        max_epochs: int = None,
-        save_checkpoint: bool = True,
-        name: str = '',
-        learning_rate: float = 1e-2,
-        weight_decay: float = 0.0,
-        patience: int = 1_000,
-    ):
-    # within each training iteration, constantly re evaluate which dataset to use
-    # for states with multiple best answers, only punish the logits that are not among the best
-    # this requires a custom loss function I think
-    # TODO
-    pass
 
 def param_acc_curve(
         param_min: int = 2,
