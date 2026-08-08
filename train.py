@@ -14,6 +14,45 @@ from data.game import generate_states_from_root_board
 from data.dataset import tttDataset
 from models.nn import TicTacToeNet
 
+# def one_among_many_loss(logits, moves_mask):
+#     # NOTE removes row of all True, doesnt matter what the network does
+#     # TODO there is a better fix for this, pick just corners or something
+#     logits = logits.clone()[1:]
+#     moves_mask = moves_mask.clone()[1:]
+
+#     mask_val = -float('inf')
+#     good_logits = logits.masked_fill(~moves_mask, mask_val)
+#     bad_logits = logits.masked_fill(moves_mask, mask_val)
+
+#     # loss = (torch.max(bad_logits, dim=1).values - torch.max(good_logits, dim=1).values).mean()
+#     loss = (torch.mean(bad_logits, dim=1) - torch.mean(good_logits, dim=1)).mean()
+#     return loss
+
+def one_among_many_loss(logits, moves_mask, legal_moves_mask):
+    # NOTE removes row of all True, doesnt matter what the network does
+    # TODO there is a better fix for this, pick just corners or something
+    logits = logits[1:]
+    moves_mask = moves_mask[1:]
+    legal_moves_mask = legal_moves_mask[1:]
+
+    logits = torch.nn.functional.log_softmax(logits, dim=1)
+
+    mask_val = -float('inf')
+    # good_logits = logits.masked_fill(~moves_mask, mask_val)
+    # bad_logits = logits.masked_fill(moves_mask, mask_val)
+
+    good_logits = logits * moves_mask
+    bad_logits = logits * (1-moves_mask) * legal_moves_mask
+
+    # loss = (torch.max(bad_logits, dim=1).values - torch.max(good_logits, dim=1).values).mean()
+    # loss = (torch.mean(bad_logits, dim=1) - torch.mean(good_logits, dim=1)).mean()
+
+    term_1 = (bad_logits.sum(dim=1) / (1-moves_mask).sum(dim=1).clamp(min=1))
+    term_2 = (good_logits.sum(dim=1) / moves_mask.sum(dim=1).clamp(min=1))
+    # print(term_1.mean().item(), term_2.mean().item())
+    loss =  term_1 - term_2
+    return loss.mean(), term_1.mean().item(), term_2.mean().item()
+
 def train_to_perfection(
         model,
         dataset,
@@ -24,9 +63,20 @@ def train_to_perfection(
         learning_rate: float = 1e-2,
         weight_decay: float = 0.0,
         one_right_answer: bool = True,
+        verbose: bool = False,
     ):
     with open("data/datasets/jsons/all_states.json", "r") as file:
         all_states_dict = json.load(file)
+    moves_mask = []
+    for key, moves in all_states_dict.items():
+        row = [0 for _ in range(9)]
+        for move in moves:
+            row[move] = 1
+        moves_mask.append(row)
+    # moves_mask = torch.tensor(moves_mask, dtype=torch.bool, device=device)
+    moves_mask = torch.tensor(moves_mask, device=device)
+
+    boards_lst = [key for key in all_states_dict]
 
     model.zero_grad()
 
@@ -41,7 +91,8 @@ def train_to_perfection(
     num_params = sum(p.numel() for p in model.parameters())
     # print(f'Params: {num_params}')
 
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
+    criterion = one_among_many_loss
     LEARNING_RATE = learning_rate
     WEIGHT_DECAY = weight_decay
 
@@ -57,12 +108,18 @@ def train_to_perfection(
         weight_decay=WEIGHT_DECAY
     )
 
-    scheduler = optim.lr_scheduler.LinearLR(
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
-        start_factor=1.0,
-        end_factor=0.001,
-        total_iters=max_epochs
+        factor=0.9,
+        patience=50,
+        min_lr=1e-5,
     )
+    # scheduler = optim.lr_scheduler.LinearLR(
+    #     optimizer,
+    #     start_factor=1.0,
+    #     end_factor=0.001,
+    #     total_iters=max_epochs
+    # )
 
     # train to dataset where there is only one option
 
@@ -76,41 +133,45 @@ def train_to_perfection(
             #
             outputs = model(X_data)
             #
-            loss = criterion(outputs, y_data)
+            # loss = criterion(outputs, y_data)
+            legal_moves_mask = (X_data == 0).int()
+            loss, term_1, term_2 = criterion(outputs, moves_mask, legal_moves_mask)
             # Backward pass and optimization
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        scheduler.step()
+        # scheduler.step()
+        scheduler.step(loss)
         
         predicted = torch.argmax(outputs, dim=1)
 
-        current_dataset_correct += (predicted == y_data).sum().item()
-        if one_right_answer:
-            correct = current_dataset_correct
-        else:
-            # find points predictions that are wrong for the training dataset but are still correct among all possible moves
-            wrong_indices = torch.nonzero(predicted != y_data, as_tuple=False)
 
-            all_states_correct = 0
-            for board_idx, (board_str, moves) in enumerate(all_states_dict.items()):
-                if board_idx in wrong_indices:
+        correct = 0
+        for board_idx, (_, moves) in enumerate(all_states_dict.items()):
+            if predicted[board_idx] in moves:
+                correct += 1
+        current_dataset_correct = correct
 
-                    # board_rep = dataset.board_rep_func(board_str=board_str)
-                    # board_tensor = torch.tensor(board_rep).float().unsqueeze(0)
-                    # prediction = torch.argmax(model(board_tensor))
-
-                    # NOTE assumes states are in the same order
-                    if predicted[board_idx] in moves:
-                        all_states_correct += 1
-
-            correct += all_states_correct
+        # current_dataset_correct = (predicted == y_data).sum().item()
+        # correct = current_dataset_correct
+        # if not one_right_answer:
+        #     # find points predictions that are wrong for the training dataset but are still correct among all possible moves
+        #     wrong_indices = torch.nonzero(predicted != y_data, as_tuple=False)
+        #     all_states_correct = 0
+        #     # NOTE assumes states are in the same order
+        #     for idx in wrong_indices:
+        #         moves = all_states_dict[boards_lst[idx]]
+        #         if predicted[idx] in moves:
+        #             all_states_correct += 1
+        #     correct += all_states_correct
 
         accuracy = 100 * correct / dataset.num_datapoints
 
         if epoch % 100 == 0 or accuracy == 100.0:
-            print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, Correct (Dataset/All): {current_dataset_correct} / {correct}, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
+            if verbose:
+                print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, Correct (Dataset/All): {current_dataset_correct} / {correct}, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
+                print(f'Term 1,2: {term_1, term_2}')
 
             if accuracy == 100.0:
                 perfection_reached = True

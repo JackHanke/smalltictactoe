@@ -26,19 +26,20 @@ def intervention_experiment():
         layers: 2 replen: 9  masking: True  | 693    
     '''
 
-    with open("data/_9_seed_options.json", "r") as file:
+    with open("data/datasets/jsons/nn_friendly_dataset.json", "r") as file:
         states_dict = json.load(file)
 
-    num_seeds = 5   
+    num_seeds = 4
     results_dict = {}
     for num_layers in [1,2]:
         for board_rep_func, rep_length in [(binary_board_rep, 18), (trinary_board_rep, 9)]:
             for do_illegal_move_masking in [True]:
-                start_hidden_dim = 35
+                start_hidden_dim = 25
                 best_params = float('inf')
 
                 perfection_reached = True
                 while perfection_reached:
+                    print(f'Examining hidden_dim: {start_hidden_dim}...')
 
                     for seed in range(num_seeds):
                         random.seed(seed)
@@ -65,9 +66,10 @@ def intervention_experiment():
                             dataset=dataset,
                             max_epochs=10_000,
                             weight_decay=0.0,
-                            one_right_answer=True,
+                            one_right_answer=False,
                             device=DEVICE,
                             save_checkpoint=False,
+                            verbose=True,
                         )
 
                         if not seed_perfection_reached: 
@@ -80,7 +82,7 @@ def intervention_experiment():
                         best_params = num_params
                         start_hidden_dim -= 1
 
-                checkpoint_path = f'models/checkpoints/experiment/nn_{best_params}_{hidden_sizes}_{num_layers}_{rep_length}_{do_illegal_move_masking}.pth'
+                checkpoint_path = f'models/checkpoints/intervention_experiment/nn_{best_params}_{hidden_sizes}_{num_layers}_{rep_length}_{do_illegal_move_masking}.pth'
                 model.zero_grad() # zero grads for file size
                 torch.save(model.state_dict(), checkpoint_path)
                 # print(f'Model saved at: {checkpoint_path}')
@@ -96,10 +98,10 @@ def smallest_possible_experiment():
     hidden_dim=24 seems to be the limit, 100 seeds tried with 23
     '''
 
-    with open("data/_9_seed_options.json", "r") as file:
+    with open("data/datasets/jsons/nn_friendly_dataset.json", "r") as file:
         states_dict = json.load(file)
 
-    start_hidden_dim = 20
+    start_hidden_dim = 19
     num_layers = 1
     best_params = float('inf')
 
@@ -108,15 +110,15 @@ def smallest_possible_experiment():
     seed_found = True
     while seed_found:
         seed_found = False
-        prog = tqdm(range(500,600))
+        prog = tqdm(range(0, num_seeds))
         for seed in prog:
             prog.set_description(f'Seed: {seed}')
             random.seed(seed)
             np.random.seed(seed)       
             torch.manual_seed(seed)
 
-            # board_rep_func, rep_length = (trinary_board_rep, 9)
-            board_rep_func, rep_length = (trinary_plus_sym_board_rep, 17)
+            board_rep_func, rep_length = (trinary_board_rep, 9)
+            # board_rep_func, rep_length = (trinary_plus_sym_board_rep, 17)
             do_illegal_move_masking = True
 
             hidden_sizes = [start_hidden_dim for _ in range(num_layers)]
@@ -126,11 +128,15 @@ def smallest_possible_experiment():
                 do_illegal_move_masking=do_illegal_move_masking,
             ).to(DEVICE)
 
-            dataset = tttDataset(
-                states_dict=states_dict,
+            # dataset = tttDataset(
+            #     states_dict=states_dict,
+            #     board_rep_func=board_rep_func,
+            #     len_rep=rep_length,
+            # )
+            dataset = alltttDataset(
                 board_rep_func=board_rep_func,
                 len_rep=rep_length,
-            )   
+            )
 
             num_params = sum(p.numel() for p in model.parameters())
             print(f'Testing hidden_dim: {start_hidden_dim}, params {num_params}...')
@@ -138,11 +144,12 @@ def smallest_possible_experiment():
             seed_perfection_reached, epoch, accuracy = train_to_perfection(
                 model=model,
                 dataset=dataset,
-                max_epochs=20_000,
+                max_epochs=10_000,
                 weight_decay=0.0,
-                one_right_answer=True,
+                one_right_answer=False,
                 device=DEVICE,
                 save_checkpoint=False,
+                verbose=True,
             )
 
             if seed_perfection_reached: 
@@ -162,4 +169,7 @@ def smallest_possible_experiment():
     print(f'Best params from seed hunt: {best_params}')
 
 if __name__ == '__main__':
+
+    # intervention_experiment()
+
     smallest_possible_experiment()

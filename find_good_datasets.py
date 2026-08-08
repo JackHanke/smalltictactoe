@@ -95,7 +95,7 @@ def nn_friendly(
             if hidden_dim is None: name='linear'
             else: name=''
 
-            with open(f'data/nn_friendly_datasets.json', 'w') as fp:
+            with open(f'data/datasets/jsons/nn_friendly_dataset.json', 'w') as fp:
                 json.dump(new_options, fp)
             break
         print(f'Iteration {iteration} length fixed states: {len(fixed_states)} / {len(all_states)}, {len(all_states)-len(fixed_states)} left.')

@@ -1,6 +1,7 @@
+import json
 import numpy as np
-import torch
 import pandas as pd
+import torch
 from torch.utils.data import Dataset
 
 from data.reps import *
@@ -46,8 +47,9 @@ class alltttDataset(Dataset):
             self, 
             len_rep: int, 
             board_rep_func,
-            states_dict: dict = None
         ):
+        with open("data/datasets/jsons/all_states.json", "r") as file:
+            states_dict = json.load(file)
         X, Y = [], []
         for board_str, moves in states_dict.items():
             binary_board = board_rep_func(board_str=board_str)

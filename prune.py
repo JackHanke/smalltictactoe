@@ -106,13 +106,14 @@ def prune_train_loop(
         # nonzero_params += torch.sum(model.fc_4.weight != 0)
         # nonzero_params += torch.sum(model.fc_4.bias != 0)
 
-        print(f'\nGen {gen} non-zero params testing: {nonzero_params}\n')
+        print(f'\nGen {gen} non-zero params testing: {nonzero_params}/{num_params}')
 
         perfection_reached, _, _ = train_to_perfection(
             model=model,
             dataset=dataset,
             max_epochs=max_epochs,
             save_checkpoint=False,
+            one_right_answer=False,
             name=f'_gen{gen}_nonz{nonzero_params}',
             device=device,
         )
