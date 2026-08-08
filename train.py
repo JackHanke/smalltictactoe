@@ -29,29 +29,34 @@ from models.nn import TicTacToeNet
 #     return loss
 
 def one_among_many_loss(logits, moves_mask, legal_moves_mask):
-    # NOTE removes row of all True, doesnt matter what the network does
-    # TODO there is a better fix for this, pick just corners or something
-    logits = logits[1:]
-    moves_mask = moves_mask[1:]
-    legal_moves_mask = legal_moves_mask[1:]
+    # identify rows in which any legal move can be played
+    row_mask = (~(moves_mask == legal_moves_mask).all(dim=1)).nonzero().squeeze(1)
+
+    logits = logits[row_mask]
+    moves_mask = moves_mask[row_mask]
+    legal_moves_mask = legal_moves_mask[row_mask]
+
+    # find rows in which only legal moves are the moves_mask, and remove from loss
+    # 
 
     logits = torch.nn.functional.log_softmax(logits, dim=1)
 
-    mask_val = -float('inf')
+    # mask_val = -float('inf')
     # good_logits = logits.masked_fill(~moves_mask, mask_val)
     # bad_logits = logits.masked_fill(moves_mask, mask_val)
 
     good_logits = logits * moves_mask
     bad_logits = logits * (1-moves_mask) * legal_moves_mask
 
-    # loss = (torch.max(bad_logits, dim=1).values - torch.max(good_logits, dim=1).values).mean()
+    loss = (torch.max(bad_logits, dim=1).values - torch.max(good_logits, dim=1).values).mean()
     # loss = (torch.mean(bad_logits, dim=1) - torch.mean(good_logits, dim=1)).mean()
 
     term_1 = (bad_logits.sum(dim=1) / (1-moves_mask).sum(dim=1).clamp(min=1))
     term_2 = (good_logits.sum(dim=1) / moves_mask.sum(dim=1).clamp(min=1))
     # print(term_1.mean().item(), term_2.mean().item())
     loss =  term_1 - term_2
-    return loss.mean(), term_1.mean().item(), term_2.mean().item()
+    # return loss.mean(), term_1.mean().item(), term_2.mean().item()
+    return loss.mean()
 
 def train_to_perfection(
         model,
@@ -134,8 +139,10 @@ def train_to_perfection(
             outputs = model(X_data)
             #
             # loss = criterion(outputs, y_data)
-            legal_moves_mask = (X_data == 0).int()
-            loss, term_1, term_2 = criterion(outputs, moves_mask, legal_moves_mask)
+            legal_moves_mask = (X_data == 0)
+            loss = criterion(outputs, moves_mask, legal_moves_mask)
+            # loss, term_1, term_2 = criterion(outputs, moves_mask, legal_moves_mask)
+
             # Backward pass and optimization
             optimizer.zero_grad()
             loss.backward()
@@ -168,10 +175,10 @@ def train_to_perfection(
 
         accuracy = 100 * correct / dataset.num_datapoints
 
-        if epoch % 100 == 0 or accuracy == 100.0:
+        if epoch % 1 == 0 or accuracy == 100.0:
             if verbose:
                 print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, Correct (Dataset/All): {current_dataset_correct} / {correct}, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
-                print(f'Term 1,2: {term_1, term_2}')
+                # print(f'Term 1,2: {term_1, term_2}')
 
             if accuracy == 100.0:
                 perfection_reached = True
