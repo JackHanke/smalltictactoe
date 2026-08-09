@@ -70,18 +70,21 @@ def train_to_perfection(
         one_right_answer: bool = True,
         verbose: bool = False,
     ):
-    with open("data/datasets/jsons/all_states.json", "r") as file:
+    with open("data/datasets/jsons/all_states_filtered.json", "r") as file:
         all_states_dict = json.load(file)
+
     moves_mask = []
     for key, moves in all_states_dict.items():
         row = [0 for _ in range(9)]
         for move in moves:
             row[move] = 1
         moves_mask.append(row)
+
+    moves_mask = torch.tensor(moves_mask)
+    
+
     # moves_mask = torch.tensor(moves_mask, dtype=torch.bool, device=device)
     moves_mask = torch.tensor(moves_mask, device=device)
-
-    boards_lst = [key for key in all_states_dict]
 
     model.zero_grad()
 
@@ -96,8 +99,8 @@ def train_to_perfection(
     num_params = sum(p.numel() for p in model.parameters())
     # print(f'Params: {num_params}')
 
-    # criterion = nn.CrossEntropyLoss()
-    criterion = one_among_many_loss
+    criterion = nn.CrossEntropyLoss()
+    # criterion = one_among_many_loss
     LEARNING_RATE = learning_rate
     WEIGHT_DECAY = weight_decay
 
@@ -135,12 +138,15 @@ def train_to_perfection(
         for (X_data, y_data) in dataloader:
             X_data = X_data.to(device)
             y_data = y_data.to(device)
+
+            # X_data = X_data[row_mask]
+            # y_data = y_data[row_mask]
             #
             outputs = model(X_data)
             #
-            # loss = criterion(outputs, y_data)
-            legal_moves_mask = (X_data == 0)
-            loss = criterion(outputs, moves_mask, legal_moves_mask)
+            loss = criterion(outputs, y_data)
+            # legal_moves_mask = (X_data == 0)
+            # loss = criterion(outputs, moves_mask, legal_moves_mask)
             # loss, term_1, term_2 = criterion(outputs, moves_mask, legal_moves_mask)
 
             # Backward pass and optimization
@@ -156,7 +162,10 @@ def train_to_perfection(
 
         correct = 0
         for board_idx, (_, moves) in enumerate(all_states_dict.items()):
-            if predicted[board_idx] in moves:
+
+            if predicted[board_idx] not in moves:
+                break
+            else:
                 correct += 1
         current_dataset_correct = correct
 
@@ -175,9 +184,17 @@ def train_to_perfection(
 
         accuracy = 100 * correct / dataset.num_datapoints
 
-        if epoch % 1 == 0 or accuracy == 100.0:
+        if epoch % 100 == 0 or accuracy == 100.0:
+
+            correct = 0
+            for board_idx, (_, moves) in enumerate(all_states_dict.items()):
+                if predicted[board_idx] in moves:
+                    correct += 1
+            current_dataset_correct = correct
+            accuracy = 100 * correct / dataset.num_datapoints
+
             if verbose:
-                print(f'Epoch [{epoch}], Loss: {loss.item():.4f}, Accuracy: {accuracy:.4f}%, Correct (Dataset/All): {current_dataset_correct} / {correct}, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
+                print(f'Epoch [{epoch}], Loss: {loss.item():.8f}, Accuracy: {accuracy:.4f}%, Correct (Dataset/All): {current_dataset_correct} / {correct}, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
                 # print(f'Term 1,2: {term_1, term_2}')
 
             if accuracy == 100.0:
@@ -192,6 +209,10 @@ def train_to_perfection(
         if epoch == max_epochs: return perfection_reached, epoch, accuracy
     
     return perfection_reached, epoch, accuracy
+
+
+
+
 
 def param_acc_curve(
         param_min: int = 2,

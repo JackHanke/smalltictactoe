@@ -98,10 +98,10 @@ def smallest_possible_experiment():
     hidden_dim=24 seems to be the limit, 100 seeds tried with 23
     '''
 
-    with open("data/datasets/jsons/nn_friendly_dataset.json", "r") as file:
+    with open("data/datasets/jsons/nn_friendly_filtered_dataset.json", "r") as file:
         states_dict = json.load(file)
 
-    start_hidden_dim = 19
+    start_hidden_dim = 14
     num_layers = 1
     best_params = float('inf')
 
@@ -110,7 +110,7 @@ def smallest_possible_experiment():
     seed_found = True
     while seed_found:
         seed_found = False
-        prog = tqdm(range(0, num_seeds))
+        prog = tqdm(range(100, 120))
         for seed in prog:
             prog.set_description(f'Seed: {seed}')
             random.seed(seed)
@@ -128,15 +128,15 @@ def smallest_possible_experiment():
                 do_illegal_move_masking=do_illegal_move_masking,
             ).to(DEVICE)
 
-            # dataset = tttDataset(
-            #     states_dict=states_dict,
-            #     board_rep_func=board_rep_func,
-            #     len_rep=rep_length,
-            # )
-            dataset = alltttDataset(
+            dataset = tttDataset(
+                states_dict=states_dict,
                 board_rep_func=board_rep_func,
                 len_rep=rep_length,
             )
+            # dataset = alltttDataset(
+            #     board_rep_func=board_rep_func,
+            #     len_rep=rep_length,
+            # )
 
             num_params = sum(p.numel() for p in model.parameters())
             print(f'Testing hidden_dim: {start_hidden_dim}, params {num_params}...')

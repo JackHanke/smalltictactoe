@@ -16,6 +16,7 @@ class tttDataset(Dataset):
             states_dict: dict = None
         ):
         self.board_rep_func = board_rep_func
+        self.states_dict = states_dict
         if path is None and df is None and states_dict is None: raise RuntimeError('No dataframe or path passed!')
         # if path is not None:
         #     df = pd.read_csv(path)
@@ -48,8 +49,9 @@ class alltttDataset(Dataset):
             len_rep: int, 
             board_rep_func,
         ):
-        with open("data/datasets/jsons/all_states.json", "r") as file:
+        with open("data/datasets/jsons/all_states_filtered.json", "r") as file:
             states_dict = json.load(file)
+        self.states_dict = states_dict
         X, Y = [], []
         for board_str, moves in states_dict.items():
             binary_board = board_rep_func(board_str=board_str)

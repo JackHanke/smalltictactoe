@@ -24,8 +24,8 @@ def nn_friendly(
     ):
     # find dataset seeds that are easy for a neural network to model
 
-    if all_states is None:
-        all_states = generate_states_from_root_board([' '] * 9, 'X')
+    with open("data/datasets/jsons/all_states_filtered.json", "r") as file:
+        all_states = json.load(file)
 
     rep_length = 9
     board_rep_func = trinary_board_rep
@@ -95,7 +95,7 @@ def nn_friendly(
             if hidden_dim is None: name='linear'
             else: name=''
 
-            with open(f'data/datasets/jsons/nn_friendly_dataset.json', 'w') as fp:
+            with open(f'data/datasets/jsons/nn_friendly_filtered_dataset.json', 'w') as fp:
                 json.dump(new_options, fp)
             break
         print(f'Iteration {iteration} length fixed states: {len(fixed_states)} / {len(all_states)}, {len(all_states)-len(fixed_states)} left.')
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     states_dict = None
 
     nn_friendly(
-        hidden_dim=[31], 
+        hidden_dim=[28], 
         max_epochs=5_000, 
         all_states=states_dict,
         device=DEVICE,

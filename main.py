@@ -15,7 +15,7 @@ if __name__ == "__main__":
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     num_layers = 1
-    HIDDEN_DIMS = [20 for _ in range(num_layers)]
+    HIDDEN_DIMS = [15 for _ in range(num_layers)]
     rep_length = 9
     board_rep_func = trinary_board_rep
     model = TicTacToeNet(
@@ -25,12 +25,12 @@ if __name__ == "__main__":
     num_params = sum(p.numel() for p in model.parameters())
     print(f'Model parameters: {num_params}')
 
-    # PATH = 'models/checkpoints/smallest_possible_experiment/nn_389_[20]_1_9_True_14.pth'
-    # model.load_state_dict(torch.load(PATH, weights_only=True))
+    PATH = 'models/checkpoints/smallest_possible_experiment/nn_294_[15]_1_9_True_1.pth'
+    model.load_state_dict(torch.load(PATH, weights_only=True))
 
-    # with open("data/datasets/jsons/nn_friendly_dataset.json", "r") as file:
-    #     states_dict = json.load(file)
-    # print(f'Datapoints: {len(states_dict)}')
+    with open("data/datasets/jsons/nn_friendly_filtered_dataset.json", "r") as file:
+        states_dict = json.load(file)
+    print(f'Datapoints: {len(states_dict)}')
 
 
     # states_dict = {}
@@ -50,31 +50,31 @@ if __name__ == "__main__":
     # with open(f"/Users/jack/vault/software/smalltictactoe/_9_seed_options.json", "r") as file:
     #     states_dict = json.load(file)
 
-    dataset = alltttDataset(
-        board_rep_func=board_rep_func,
-        len_rep=rep_length,
-    )    
-    # dataset = tttDataset(
-    #     states_dict=states_dict,
+    # dataset = alltttDataset(
     #     board_rep_func=board_rep_func,
     #     len_rep=rep_length,
     # )    
+    dataset = tttDataset(
+        states_dict=states_dict,
+        board_rep_func=board_rep_func,
+        len_rep=rep_length,
+    )    
 
     # print(f'Hidden dims: {HIDDEN_DIMS}')
 
-    train_to_perfection(
-        model=model,
-        dataset=dataset,
-        max_epochs=10_000,
-        weight_decay=0.0,
-        one_right_answer=False,
-        learning_rate=1e-2,
-        device=DEVICE,
-        verbose=True
-    )
-
-    # prune_train_loop(
+    # train_to_perfection(
     #     model=model,
     #     dataset=dataset,
+    #     max_epochs=10_000,
+    #     weight_decay=0.0,
+    #     one_right_answer=False,
+    #     learning_rate=1e-2,
     #     device=DEVICE,
+    #     verbose=True
     # )
+
+    prune_train_loop(
+        model=model,
+        dataset=dataset,
+        device=DEVICE,
+    )

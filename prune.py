@@ -18,7 +18,7 @@ def prune_train_loop(
     max_epochs = 10_000
     gen = 0
     perfection_reached = True
-    fraction_to_prune = 0.075
+    fraction_to_prune = 0.01
     patience = 4
     gens_since_no_improvement = 0
     while True:
@@ -116,6 +116,7 @@ def prune_train_loop(
             one_right_answer=False,
             name=f'_gen{gen}_nonz{nonzero_params}',
             device=device,
+            verbose=True,
         )
 
         if perfection_reached:
