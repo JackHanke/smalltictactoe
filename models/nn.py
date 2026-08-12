@@ -65,7 +65,7 @@ class TicTacToeNet(nn.Module):
         if self.do_illegal_move_masking:
             # mask_val = float('-inf')
             mask_val = -1e6
-            if self.input_size == 9 or self.input_size == 17:
+            if self.input_size == 9 or self.input_size == 17 or self.input_size == 33:
                 illegal = (x[:, :9] != 0)
                 y = y.masked_fill(illegal, mask_val)
             elif self.input_size == 18:

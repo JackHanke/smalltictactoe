@@ -110,7 +110,7 @@ def smallest_possible_experiment():
     seed_found = True
     while seed_found:
         seed_found = False
-        prog = tqdm(range(100, 120))
+        prog = tqdm(range(116, 117))
         for seed in prog:
             prog.set_description(f'Seed: {seed}')
             random.seed(seed)
@@ -144,7 +144,7 @@ def smallest_possible_experiment():
             seed_perfection_reached, epoch, accuracy = train_to_perfection(
                 model=model,
                 dataset=dataset,
-                max_epochs=10_000,
+                max_epochs=40_000,
                 weight_decay=0.0,
                 one_right_answer=False,
                 device=DEVICE,

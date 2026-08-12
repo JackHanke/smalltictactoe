@@ -27,8 +27,8 @@ def nn_friendly(
     with open("data/datasets/jsons/all_states_filtered.json", "r") as file:
         all_states = json.load(file)
 
-    rep_length = 9
-    board_rep_func = trinary_board_rep
+    rep_length = 9+24
+    board_rep_func = trinary_plus_handcrafted_board_rep
 
     all_dataset = tttDataset(
         states_dict=all_states,
@@ -44,7 +44,10 @@ def nn_friendly(
     while num_wrong != 0:
         iteration += 1
 
-        model = TicTacToeNet(hidden_sizes=hidden_dim, input_size=rep_length).to(device)
+        model = TicTacToeNet(
+            hidden_sizes=hidden_dim,
+            input_size=rep_length,
+        ).to(device)
 
         dataset = tttDataset(
             states_dict=fixed_states,
@@ -95,7 +98,7 @@ def nn_friendly(
             if hidden_dim is None: name='linear'
             else: name=''
 
-            with open(f'data/datasets/jsons/nn_friendly_filtered_dataset.json', 'w') as fp:
+            with open(f'data/datasets/jsons/nn_friendly_filtered_dataset_33.json', 'w') as fp:
                 json.dump(new_options, fp)
             break
         print(f'Iteration {iteration} length fixed states: {len(fixed_states)} / {len(all_states)}, {len(all_states)-len(fixed_states)} left.')
@@ -112,7 +115,7 @@ if __name__ == '__main__':
     states_dict = None
 
     nn_friendly(
-        hidden_dim=[28], 
+        hidden_dim=[9], 
         max_epochs=5_000, 
         all_states=states_dict,
         device=DEVICE,

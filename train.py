@@ -159,17 +159,18 @@ def train_to_perfection(
         
         predicted = torch.argmax(outputs, dim=1)
 
+        if not one_right_answer:
+            correct = 0
+            for board_idx, (_, moves) in enumerate(all_states_dict.items()):
 
-        correct = 0
-        for board_idx, (_, moves) in enumerate(all_states_dict.items()):
+                if predicted[board_idx] not in moves:
+                    break
+                else:
+                    correct += 1
+            current_dataset_correct = correct
+        else:
+            correct = (predicted == y_data).sum().item()
 
-            if predicted[board_idx] not in moves:
-                break
-            else:
-                correct += 1
-        current_dataset_correct = correct
-
-        # current_dataset_correct = (predicted == y_data).sum().item()
         # correct = current_dataset_correct
         # if not one_right_answer:
         #     # find points predictions that are wrong for the training dataset but are still correct among all possible moves
@@ -185,12 +186,15 @@ def train_to_perfection(
         accuracy = 100 * correct / dataset.num_datapoints
 
         if epoch % 100 == 0 or accuracy == 100.0:
+            if not one_right_answer:
+                correct = 0
+                for board_idx, (_, moves) in enumerate(all_states_dict.items()):
+                    if predicted[board_idx] in moves:
+                        correct += 1
+                current_dataset_correct = correct
+            else:
+                correct = (predicted == y_data).sum().item()
 
-            correct = 0
-            for board_idx, (_, moves) in enumerate(all_states_dict.items()):
-                if predicted[board_idx] in moves:
-                    correct += 1
-            current_dataset_correct = correct
             accuracy = 100 * correct / dataset.num_datapoints
 
             if verbose:
