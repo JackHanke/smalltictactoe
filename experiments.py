@@ -101,16 +101,16 @@ def smallest_possible_experiment():
     with open("data/datasets/jsons/nn_friendly_filtered_dataset.json", "r") as file:
         states_dict = json.load(file)
 
-    start_hidden_dim = 14
+    start_hidden_dim = 11
     num_layers = 1
     best_params = float('inf')
 
-    num_seeds = 30
+    num_seeds = 100
 
     seed_found = True
     while seed_found:
         seed_found = False
-        prog = tqdm(range(116, 117))
+        prog = tqdm(range(100, 100+num_seeds))
         for seed in prog:
             prog.set_description(f'Seed: {seed}')
             random.seed(seed)

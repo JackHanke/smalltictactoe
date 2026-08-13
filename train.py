@@ -111,7 +111,7 @@ def train_to_perfection(
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         factor=0.9,
-        patience=150,
+        patience=200,
         min_lr=1e-5,
     )
     # scheduler = optim.lr_scheduler.LinearLR(
