@@ -26,41 +26,12 @@ class TicTacToeNet(nn.Module):
                 layers.append(nn.ReLU()) # Add activation between layers
             # 3. Remove the last ReLU (usually not needed on the output layer)
             layers.pop()
-        # self.layers = layers
         
         self.model = nn.Sequential(*layers)
-        # self.relu = nn.ReLU(inplace=True)
-
-
-        # depth = 13
-        # print(f'NOTE YOU HARDCODED THE RESNET ARCH!')
-        # self.lay0 = nn.Linear(9,depth)
-        # self.lay1 = nn.Linear(depth,depth)
-        # self.lay2 = nn.Linear(depth,depth)
-        # self.lay3 = nn.Linear(depth,depth)
-        # self.lay4 = nn.Linear(depth,depth)
-        # self.lay5 = nn.Linear(depth,depth)
-        # self.lay6 = nn.Linear(depth,depth)
-        # self.lay7 = nn.Linear(depth,depth)
-        # self.lay8 = nn.Linear(depth,depth)
-        # self.lay9 = nn.Linear(depth,9)
 
 
     def forward(self, x):
         y = self.model(x)
-
-        
-        # x = torch.nn.functional.relu(self.lay0(x))
-        # x = x + torch.nn.functional.relu(self.lay1(x))
-        # x = x + torch.nn.functional.relu(self.lay2(x))
-        # x = x + torch.nn.functional.relu(self.lay3(x))
-        # x = x + torch.nn.functional.relu(self.lay4(x))
-        # x = x + torch.nn.functional.relu(self.lay5(x))
-        # x = x + torch.nn.functional.relu(self.lay6(x))
-        # x = torch.nn.functional.relu(self.lay7(x))
-        # x = torch.nn.functional.relu(self.lay8(x))
-        # x = torch.nn.functional.relu(self.lay9(x))
-        # y = x
 
         if self.do_illegal_move_masking:
             # mask_val = float('-inf')

@@ -81,10 +81,8 @@ def train_to_perfection(
         moves_mask.append(row)
 
     moves_mask = torch.tensor(moves_mask)
-    
-
-    # moves_mask = torch.tensor(moves_mask, dtype=torch.bool, device=device)
-    moves_mask = torch.tensor(moves_mask, device=device)
+    legal_mask = (dataset.X_data[:, :9] == 0).int()
+    full_mask = (moves_mask * legal_mask).to(device)
 
     model.zero_grad()
 
@@ -104,12 +102,6 @@ def train_to_perfection(
     LEARNING_RATE = learning_rate
     WEIGHT_DECAY = weight_decay
 
-    # configs_str = f'''Configs:
-    # LEARNING_RATE: {LEARNING_RATE}
-    # WEIGHT_DECAY: {WEIGHT_DECAY}
-    # '''
-    # print(configs_str)
-
     optimizer = optim.Adam(
         model.parameters(),
         lr=LEARNING_RATE,
@@ -119,7 +111,7 @@ def train_to_perfection(
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         factor=0.9,
-        patience=50,
+        patience=150,
         min_lr=1e-5,
     )
     # scheduler = optim.lr_scheduler.LinearLR(
@@ -129,77 +121,45 @@ def train_to_perfection(
     #     total_iters=max_epochs
     # )
 
-    # train to dataset where there is only one option
-
+    ## train to dataset where there is only one option
     epoch, accuracy = 0, 0
     while accuracy < 100.0:
         epoch += 1
 
-        for (X_data, y_data) in dataloader:
+        for (X_data, temp_y) in dataloader:
             X_data = X_data.to(device)
-            y_data = y_data.to(device)
 
-            # X_data = X_data[row_mask]
-            # y_data = y_data[row_mask]
-            #
             outputs = model(X_data)
+
+            # NOTE the ground truth is the largest legal optimal move with largest logit
+            masked_outputs = outputs.masked_fill(~(full_mask.bool()), -float('inf'))
+            y_data = torch.argmax(masked_outputs, dim=1)
+            # print(temp_y[:3])
+            # print(full_mask[:3])
+            # print(masked_outputs[:3])
+            # print(y_data[:3])
+            # input()
+
             #
             loss = criterion(outputs, y_data)
-            # legal_moves_mask = (X_data == 0)
-            # loss = criterion(outputs, moves_mask, legal_moves_mask)
-            # loss, term_1, term_2 = criterion(outputs, moves_mask, legal_moves_mask)
 
             # Backward pass and optimization
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        # scheduler.step()
         scheduler.step(loss)
         
-        predicted = torch.argmax(outputs, dim=1)
+        predicted = torch.nn.functional.one_hot(torch.argmax(outputs, dim=1), num_classes=9)
 
-        if not one_right_answer:
-            correct = 0
-            for board_idx, (_, moves) in enumerate(all_states_dict.items()):
-
-                if predicted[board_idx] not in moves:
-                    break
-                else:
-                    correct += 1
-            current_dataset_correct = correct
-        else:
-            correct = (predicted == y_data).sum().item()
-
-        # correct = current_dataset_correct
-        # if not one_right_answer:
-        #     # find points predictions that are wrong for the training dataset but are still correct among all possible moves
-        #     wrong_indices = torch.nonzero(predicted != y_data, as_tuple=False)
-        #     all_states_correct = 0
-        #     # NOTE assumes states are in the same order
-        #     for idx in wrong_indices:
-        #         moves = all_states_dict[boards_lst[idx]]
-        #         if predicted[idx] in moves:
-        #             all_states_correct += 1
-        #     correct += all_states_correct
+        correct = torch.sum(full_mask * predicted).item()
 
         accuracy = 100 * correct / dataset.num_datapoints
 
         if epoch % 100 == 0 or accuracy == 100.0:
-            if not one_right_answer:
-                correct = 0
-                for board_idx, (_, moves) in enumerate(all_states_dict.items()):
-                    if predicted[board_idx] in moves:
-                        correct += 1
-                current_dataset_correct = correct
-            else:
-                correct = (predicted == y_data).sum().item()
-
-            accuracy = 100 * correct / dataset.num_datapoints
 
             if verbose:
-                print(f'Epoch [{epoch}], Loss: {loss.item():.8f}, Accuracy: {accuracy:.4f}%, Correct (Dataset/All): {current_dataset_correct} / {correct}, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
-                # print(f'Term 1,2: {term_1, term_2}')
+                print(f'Epoch [{epoch}], Loss: {loss.item():.8f}, Accuracy: {accuracy:.4f}%, Correct: {correct}, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
 
             if accuracy == 100.0:
                 perfection_reached = True
