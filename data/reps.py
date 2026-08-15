@@ -38,10 +38,10 @@ def trinary_plus_handcrafted_board_rep(board_str: str):
     bool_board.extend([
         c1*e2,
         c1*c3,
-        e2*e3,
+        e2*c3,
         e1*c,
         e1*e4,
-        e1*c,
+        c*e4,
         c2*e3,
         c2*c4,
         e3*c4,
@@ -56,7 +56,7 @@ def trinary_plus_handcrafted_board_rep(board_str: str):
         c3*c4,
         e4*c4,
 
-        c1*c2,
+        c1*c,
         c1*c4,
         c*c4,
         c2*c,
