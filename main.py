@@ -15,9 +15,9 @@ if __name__ == "__main__":
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     num_layers = 1
-    HIDDEN_DIMS = [12 for _ in range(num_layers)]
+    HIDDEN_DIMS = [5 for _ in range(num_layers)]
     rep_length = 9
-    board_rep_func = trinary_board_rep
+    board_rep_fn = trinary_board_rep
     model = TicTacToeNet(
         hidden_sizes=HIDDEN_DIMS,
         input_size=rep_length
@@ -25,40 +25,15 @@ if __name__ == "__main__":
     num_params = sum(p.numel() for p in model.parameters())
     print(f'Model parameters: {num_params}')
 
-    PATH = 'models/checkpoints/smallest_possible_experiment/nn_237_[12]_1_9_True_103.pth'
+    PATH = 'models/checkpoints/smallest_possible_experiment/nn_104_[5]_1_9_True_5.pth'
     model.load_state_dict(torch.load(PATH, weights_only=True))
 
-    with open("data/datasets/jsons/nn_friendly_filtered_dataset_33.json", "r") as file:
-        states_dict = json.load(file)
-    print(f'Datapoints: {len(states_dict)}')
-
-
-    # states_dict = {}
-    # for key, value in states.items():
-    #     val = value[0]
-    #     states_dict[key] = [val]
-
-    # with open(f'data/example_dataset.json', 'w') as fp:
-    #     json.dump(states_dict, fp)
-
-    # with open(f"data/9_example_dataset.json", "r") as file:
-    #     states_dict = json.load(file)
-
-    # with open(f"data/router_dataset.json", "r") as file:
-    #     states_dict = json.load(file)
-
-    # with open(f"/Users/jack/vault/software/smalltictactoe/_9_seed_options.json", "r") as file:
-    #     states_dict = json.load(file)
-
-    # dataset = alltttDataset(
-    #     board_rep_func=board_rep_func,
-    #     len_rep=rep_length,
-    # )    
-    dataset = tttDataset(
-        states_dict=states_dict,
-        board_rep_func=board_rep_func,
-        len_rep=rep_length,
-    )    
+    DATA_PATH = "data/datasets/jsons/non_block_or_win_filtered.json"
+    print(f'DATA PATH: {DATA_PATH}')
+    data_tensor, moves_mask = data_json_to_tensor(
+        data_json_path=DATA_PATH,
+        board_rep_fn=board_rep_fn,
+    )
 
     # print(f'Hidden dims: {HIDDEN_DIMS}')
 
@@ -75,6 +50,8 @@ if __name__ == "__main__":
 
     prune_train_loop(
         model=model,
-        dataset=dataset,
+        data_tensor=data_tensor,
+        moves_mask=moves_mask,
         device=DEVICE,
+        max_epochs=50_000,
     )

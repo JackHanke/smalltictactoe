@@ -5,7 +5,7 @@ import torch
 from tqdm import tqdm
 
 from train import train_to_perfection
-from data.dataset import tttDataset, alltttDataset
+from data.dataset import data_json_to_tensor
 from models.nn import TicTacToeNet, routerNet
 from data.reps import *
 
@@ -34,19 +34,19 @@ def intervention_experiment():
     for num_layers in [1,2]:
         for board_rep_func, rep_length in [(binary_board_rep, 18), (trinary_board_rep, 9)]:
             for do_illegal_move_masking in [True]:
-                start_hidden_dim = 25
+                hidden_dim = 25
                 best_params = float('inf')
 
                 perfection_reached = True
                 while perfection_reached:
-                    print(f'Examining hidden_dim: {start_hidden_dim}...')
+                    print(f'Examining hidden_dim: {hidden_dim}...')
 
                     for seed in range(num_seeds):
                         random.seed(seed)
                         np.random.seed(seed)       
                         torch.manual_seed(seed)
 
-                        hidden_sizes = [start_hidden_dim for _ in range(num_layers)]
+                        hidden_sizes = [hidden_dim for _ in range(num_layers)]
                         model = TicTacToeNet(
                             hidden_sizes=hidden_sizes,
                             input_size=rep_length,
@@ -80,7 +80,7 @@ def intervention_experiment():
 
                     if perfection_reached:
                         best_params = num_params
-                        start_hidden_dim -= 1
+                        hidden_dim -= 1
 
                 checkpoint_path = f'models/checkpoints/intervention_experiment/nn_{best_params}_{hidden_sizes}_{num_layers}_{rep_length}_{do_illegal_move_masking}.pth'
                 model.zero_grad() # zero grads for file size
@@ -98,53 +98,48 @@ def smallest_possible_experiment():
     hidden_dim=24 seems to be the limit, 100 seeds tried with 23
     '''
 
-    with open("data/datasets/jsons/nn_friendly_filtered_dataset.json", "r") as file:
-        states_dict = json.load(file)
+    DATA_PATH = "data/datasets/jsons/non_block_or_win_filtered.json"
+    print(f'DATA PATH: {DATA_PATH}')
+    
+    board_rep_fn, rep_length = (trinary_board_rep, 9)
+    data_tensor, moves_mask = data_json_to_tensor(
+        data_json_path=DATA_PATH,
+        board_rep_fn=board_rep_fn,
+    )
 
-    start_hidden_dim = 11
+    hidden_dim = 4
+    print(f'Starting at hidden_dim: {hidden_dim}')
     num_layers = 1
     best_params = float('inf')
 
-    num_seeds = 100
+    num_seeds = 88
 
     seed_found = True
     while seed_found:
         seed_found = False
-        prog = tqdm(range(100, 100+num_seeds))
-        for seed in prog:
-            prog.set_description(f'Seed: {seed}')
+        for seed in range(88, 89):
             random.seed(seed)
             np.random.seed(seed)       
             torch.manual_seed(seed)
 
-            board_rep_func, rep_length = (trinary_board_rep, 9)
             # board_rep_func, rep_length = (trinary_plus_sym_board_rep, 17)
             do_illegal_move_masking = True
 
-            hidden_sizes = [start_hidden_dim for _ in range(num_layers)]
+            hidden_sizes = [hidden_dim for _ in range(num_layers)]
             model = TicTacToeNet(
                 hidden_sizes=hidden_sizes,
                 input_size=rep_length,
                 do_illegal_move_masking=do_illegal_move_masking,
             ).to(DEVICE)
 
-            dataset = tttDataset(
-                states_dict=states_dict,
-                board_rep_func=board_rep_func,
-                len_rep=rep_length,
-            )
-            # dataset = alltttDataset(
-            #     board_rep_func=board_rep_func,
-            #     len_rep=rep_length,
-            # )
-
             num_params = sum(p.numel() for p in model.parameters())
-            print(f'Testing hidden_dim: {start_hidden_dim}, params {num_params}...')
+
 
             seed_perfection_reached, epoch, accuracy = train_to_perfection(
                 model=model,
-                dataset=dataset,
-                max_epochs=40_000,
+                data_tensor=data_tensor,
+                moves_mask=moves_mask,
+                max_epochs=500_000,
                 weight_decay=0.0,
                 one_right_answer=False,
                 device=DEVICE,
@@ -164,7 +159,8 @@ def smallest_possible_experiment():
 
         if seed_found:
             best_params = num_params
-            start_hidden_dim -= 1
+            hidden_dim -= 1
+            print(f'Seed Fount! Testing hidden_dim: {hidden_dim}')
 
     print(f'Best params from seed hunt: {best_params}')
 

@@ -60,7 +60,8 @@ def one_among_many_loss(logits, moves_mask, legal_moves_mask):
 
 def train_to_perfection(
         model,
-        dataset,
+        data_tensor,
+        moves_mask,
         device,
         max_epochs: int = None,
         save_checkpoint: bool = True,
@@ -70,29 +71,12 @@ def train_to_perfection(
         one_right_answer: bool = True,
         verbose: bool = False,
     ):
-    with open("data/datasets/jsons/all_states_filtered.json", "r") as file:
-        all_states_dict = json.load(file)
-
-    moves_mask = []
-    for key, moves in all_states_dict.items():
-        row = [0 for _ in range(9)]
-        for move in moves:
-            row[move] = 1
-        moves_mask.append(row)
-
-    moves_mask = torch.tensor(moves_mask)
-    legal_mask = (dataset.X_data[:, :9] == 0).int()
-    full_mask = (moves_mask * legal_mask).to(device)
-
     model.zero_grad()
 
     perfection_reached = False
 
     checkpoint_time = datetime.now()
     checkpoint_time_str = checkpoint_time.strftime("%Y-%m-%d-%H:%M:%S")
-
-    # train the given model on the dataset until perfect accuracy is achieved
-    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
 
     num_params = sum(p.numel() for p in model.parameters())
     # print(f'Params: {num_params}')
@@ -107,11 +91,10 @@ def train_to_perfection(
         lr=LEARNING_RATE,
         weight_decay=WEIGHT_DECAY
     )
-
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         factor=0.9,
-        patience=200,
+        patience=150,
         min_lr=1e-5,
     )
     # scheduler = optim.lr_scheduler.LinearLR(
@@ -120,46 +103,41 @@ def train_to_perfection(
     #     end_factor=0.001,
     #     total_iters=max_epochs
     # )
+    data_tensor = data_tensor.to(device)
+    moves_mask = moves_mask.to(device)
+
+    n = data_tensor.shape[0] # number of trianing points
 
     ## train to dataset where there is only one option
-    epoch, accuracy = 0, 0
-    while accuracy < 100.0:
-        epoch += 1
+    accuracy = 0
+    prog = tqdm(range(max_epochs), total=max_epochs)
+    for epoch in prog:
+        outputs = model(data_tensor)
 
-        for (X_data, temp_y) in dataloader:
-            X_data = X_data.to(device)
+        # NOTE the ground truth is the largest legal optimal move with largest logit
+        masked_outputs = outputs.masked_fill(~(moves_mask.bool()), -float('inf'))
+        y_data = torch.argmax(masked_outputs, dim=1)
 
-            outputs = model(X_data)
+        #
+        loss = criterion(outputs, y_data)
 
-            # NOTE the ground truth is the largest legal optimal move with largest logit
-            masked_outputs = outputs.masked_fill(~(full_mask.bool()), -float('inf'))
-            y_data = torch.argmax(masked_outputs, dim=1)
-            # print(temp_y[:3])
-            # print(full_mask[:3])
-            # print(masked_outputs[:3])
-            # print(y_data[:3])
-            # input()
-
-            #
-            loss = criterion(outputs, y_data)
-
-            # Backward pass and optimization
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
+        # Backward pass and optimization
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
         scheduler.step(loss)
         
         predicted = torch.nn.functional.one_hot(torch.argmax(outputs, dim=1), num_classes=9)
 
-        correct = torch.sum(full_mask * predicted).item()
+        correct = torch.sum(moves_mask * predicted).item()
 
-        accuracy = 100 * correct / dataset.num_datapoints
+        accuracy = 100 * correct / n
 
         if epoch % 100 == 0 or accuracy == 100.0:
 
             if verbose:
-                print(f'Epoch [{epoch}], Loss: {loss.item():.8f}, Accuracy: {accuracy:.4f}%, Correct: {correct}, {dataset.num_datapoints - correct}/{dataset.num_datapoints} remaining.')
+                prog_str = f'Loss: {loss.item():.8f}, Accuracy: {accuracy:.4f}%, Correct: {correct}, {n - correct}/{n} remaining.'
+                prog.set_description(prog_str)
 
             if accuracy == 100.0:
                 perfection_reached = True
@@ -170,7 +148,7 @@ def train_to_perfection(
                     print(f'Model saved at: {checkpoint_path}')
                     print(f'Loss: {loss.item():.5f}')
 
-        if epoch == max_epochs: return perfection_reached, epoch, accuracy
+                return perfection_reached, epoch, accuracy
     
     return perfection_reached, epoch, accuracy
 

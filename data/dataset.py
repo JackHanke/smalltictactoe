@@ -6,6 +6,33 @@ from torch.utils.data import Dataset
 
 from data.reps import *
 
+def data_json_to_tensor(
+        data_json_path: str,
+        board_rep_fn,
+    ):
+    '''
+    takes path to data json file and board rep function for tensor conversion
+    returns data from data_json as a tensor using board rep function
+    and the full mask, that being the mask of optimal moves as an int tensor
+    '''
+    with open(data_json_path, "r") as file:
+        all_states_dict = json.load(file)
+
+    data_tensor = []
+    moves_mask = []
+    for board, moves in all_states_dict.items():
+        row = [0 for _ in range(9)]
+        for move in moves:
+            row[move] = 1
+        moves_mask.append(row)
+
+        data_tensor.append(board_rep_fn(board))
+
+    moves_mask = torch.tensor(moves_mask, dtype=torch.int)
+    data_tensor = torch.tensor(data_tensor, dtype=torch.float)
+
+    return data_tensor, moves_mask
+
 class tttDataset(Dataset):
     def __init__(
             self, 

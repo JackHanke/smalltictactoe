@@ -11,14 +11,15 @@ from train import train_to_perfection
 
 def prune_train_loop(
         model,
-        dataset,
+        data_tensor,
+        moves_mask,
         device,
+        max_epochs:int = 10_000,
     ):
 
-    max_epochs = 10_000
     gen = 0
     perfection_reached = True
-    fraction_to_prune = 0.01
+    fraction_to_prune = 0.05
     patience = 4
     gens_since_no_improvement = 0
     while True:
@@ -28,15 +29,6 @@ def prune_train_loop(
         for i in range(len(model.hidden_sizes)-1):
             parameters_to_tune.append((model.model[2*i], 'weight'))
             parameters_to_tune.append((model.model[2*i], 'bias'))
-
-        # parameters_to_tune.append((model.fc_1, 'weight'))
-        # parameters_to_tune.append((model.fc_1, 'bias'))
-        # parameters_to_tune.append((model.fc_2, 'weight'))
-        # parameters_to_tune.append((model.fc_2, 'bias'))
-        # parameters_to_tune.append((model.fc_3, 'weight'))
-        # parameters_to_tune.append((model.fc_3, 'bias'))
-        # parameters_to_tune.append((model.fc_4, 'weight'))
-        # parameters_to_tune.append((model.fc_4, 'bias'))
 
         num_params = sum(p.numel() for p in model.parameters())
         
@@ -49,22 +41,6 @@ def prune_train_loop(
                 model.model[2*i].bias_orig.data.copy_(current_best_state_dict[f'model.{2*i}.bias_orig'])
                 model.model[2*i].weight_mask.data.copy_(current_best_state_dict[f'model.{2*i}.weight_mask'])
                 model.model[2*i].bias_mask.data.copy_(current_best_state_dict[f'model.{2*i}.bias_mask'])
-            # model.fc_1.weight_orig.data.copy_(current_best_state_dict[f'fc_1.weight_orig'])
-            # model.fc_1.bias_orig.data.copy_(current_best_state_dict[f'fc_1.bias_orig'])
-            # model.fc_1.weight_mask.data.copy_(current_best_state_dict[f'fc_1.weight_mask'])
-            # model.fc_1.bias_mask.data.copy_(current_best_state_dict[f'fc_1.bias_mask'])
-            # model.fc_2.weight_orig.data.copy_(current_best_state_dict[f'fc_2.weight_orig'])
-            # model.fc_2.bias_orig.data.copy_(current_best_state_dict[f'fc_2.bias_orig'])
-            # model.fc_2.weight_mask.data.copy_(current_best_state_dict[f'fc_2.weight_mask'])
-            # model.fc_2.bias_mask.data.copy_(current_best_state_dict[f'fc_2.bias_mask'])
-            # model.fc_3.weight_orig.data.copy_(current_best_state_dict[f'fc_3.weight_orig'])
-            # model.fc_3.bias_orig.data.copy_(current_best_state_dict[f'fc_3.bias_orig'])
-            # model.fc_3.weight_mask.data.copy_(current_best_state_dict[f'fc_3.weight_mask'])
-            # model.fc_3.bias_mask.data.copy_(current_best_state_dict[f'fc_3.bias_mask'])
-            # model.fc_4.weight_orig.data.copy_(current_best_state_dict[f'fc_4.weight_orig'])
-            # model.fc_4.bias_orig.data.copy_(current_best_state_dict[f'fc_4.bias_orig'])
-            # model.fc_4.weight_mask.data.copy_(current_best_state_dict[f'fc_4.weight_mask'])
-            # model.fc_4.bias_mask.data.copy_(current_best_state_dict[f'fc_4.bias_mask'])
             
             if gens_since_no_improvement == patience or num_params * fraction_to_prune < 1: 
 
@@ -97,20 +73,13 @@ def prune_train_loop(
         for i in range(len(model.hidden_sizes)-1):
             nonzero_params += torch.sum(model.model[2*i].weight != 0)
             nonzero_params += torch.sum(model.model[2*i].bias != 0)
-        # nonzero_params += torch.sum(model.fc_1.weight != 0)
-        # nonzero_params += torch.sum(model.fc_1.bias != 0)
-        # nonzero_params += torch.sum(model.fc_2.weight != 0)
-        # nonzero_params += torch.sum(model.fc_2.bias != 0)
-        # nonzero_params += torch.sum(model.fc_3.weight != 0)
-        # nonzero_params += torch.sum(model.fc_3.bias != 0)
-        # nonzero_params += torch.sum(model.fc_4.weight != 0)
-        # nonzero_params += torch.sum(model.fc_4.bias != 0)
 
         print(f'\nGen {gen} non-zero params testing: {nonzero_params}/{num_params}')
 
         perfection_reached, _, _ = train_to_perfection(
             model=model,
-            dataset=dataset,
+            data_tensor=data_tensor,
+            moves_mask=moves_mask,
             max_epochs=max_epochs,
             save_checkpoint=False,
             one_right_answer=False,
