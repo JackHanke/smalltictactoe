@@ -112,12 +112,13 @@ def smallest_possible_experiment():
     num_layers = 1
     best_params = float('inf')
 
-    num_seeds = 88
+    num_seeds = 100 # 
 
     seed_found = True
     while seed_found:
         seed_found = False
-        for seed in range(88, 89):
+        for seed in range(num_seeds):
+        # for seed in range(num_seeds):
             random.seed(seed)
             np.random.seed(seed)       
             torch.manual_seed(seed)
@@ -139,12 +140,13 @@ def smallest_possible_experiment():
                 model=model,
                 data_tensor=data_tensor,
                 moves_mask=moves_mask,
-                max_epochs=500_000,
+                max_epochs=50_000,
                 weight_decay=0.0,
                 one_right_answer=False,
                 device=DEVICE,
                 save_checkpoint=False,
                 verbose=True,
+                seed = seed,
             )
 
             if seed_perfection_reached: 

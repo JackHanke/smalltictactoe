@@ -66,10 +66,11 @@ def train_to_perfection(
         max_epochs: int = None,
         save_checkpoint: bool = True,
         name: str = '',
-        learning_rate: float = 1e-2,
+        learning_rate: float = 1e-1,
         weight_decay: float = 0.0,
         one_right_answer: bool = True,
         verbose: bool = False,
+        seed: int = None,
     ):
     model.zero_grad()
 
@@ -94,7 +95,7 @@ def train_to_perfection(
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         factor=0.9,
-        patience=150,
+        patience=500,
         min_lr=1e-5,
     )
     # scheduler = optim.lr_scheduler.LinearLR(
@@ -137,6 +138,7 @@ def train_to_perfection(
 
             if verbose:
                 prog_str = f'Loss: {loss.item():.8f}, Accuracy: {accuracy:.4f}%, Correct: {correct}, {n - correct}/{n} remaining.'
+                if seed is not None: prog_str += f' Seed: {seed}'
                 prog.set_description(prog_str)
 
             if accuracy == 100.0:

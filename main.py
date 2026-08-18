@@ -25,7 +25,7 @@ if __name__ == "__main__":
     num_params = sum(p.numel() for p in model.parameters())
     print(f'Model parameters: {num_params}')
 
-    PATH = 'models/checkpoints/smallest_possible_experiment/nn_104_[5]_1_9_True_5.pth'
+    PATH = 'models/checkpoints/smallest_possible_experiment/nn_104_[5]_1_9_True_76.pth'
     model.load_state_dict(torch.load(PATH, weights_only=True))
 
     DATA_PATH = "data/datasets/jsons/non_block_or_win_filtered.json"
@@ -53,5 +53,5 @@ if __name__ == "__main__":
         data_tensor=data_tensor,
         moves_mask=moves_mask,
         device=DEVICE,
-        max_epochs=50_000,
+        max_epochs=100_000,
     )
