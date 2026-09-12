@@ -374,14 +374,14 @@ def main():
         memoize = set()
         sols = [(all_monomial_groups, res_x_0, res_x_1)]
 
-        islinsep_recurse(
-            mon_str_dict,
-            [state_matrix_0, state_matrix_1],
-            [y_0, y_1],
-            column_groups=all_monomial_groups,
-            sols_found=sols,
-            memoize=memoize
-        )
+        # islinsep_recurse(
+        #     mon_str_dict,
+        #     [state_matrix_0, state_matrix_1],
+        #     [y_0, y_1],
+        #     column_groups=all_monomial_groups,
+        #     sols_found=sols,
+        #     memoize=memoize
+        # )
 
 
         # find first combination of features 
@@ -396,15 +396,15 @@ def main():
         #     early_stop = True,
         # )
 
-        if len(sols) > 0:
-            features_found = sols[0][0]
-            num_features_found = sum([len(subgroup) for subgroup in features_found])
+        # if len(sols) > 0:
+        #     features_found = sols[0][0]
+        #     num_features_found = sum([len(subgroup) for subgroup in features_found])
             # if num_features_found <= best_so_far:
             #     best_so_far = num_features_found
             #     prog.set_description(f'Best so far: {best_so_far}')
-            print(f'### {num_features_found} ###')
-            print(features_found)
-            print(inclusion_code)
+            # print(f'### {num_features_found} ###')
+            # print(features_found)
+            # print(inclusion_code)
 
             # print(f'Inclusion code {inclusion_code} has feature count: {num_features_found}')
 
@@ -429,7 +429,7 @@ def main():
     # )
 
 
-    k = 7
+    k = 10
     sols = []
     while len(sols) == 0:
         k += 1
@@ -444,8 +444,12 @@ def main():
         '''
         [['c1', 'c4', 'c2', 'c3'], ['c3e4', 'c1e1', 'e3c4', 'e1c2', 'c2e3', 'e4c4', 'c1e2', 'e2c3'], ['e1e2', 'e1e3', 'e3e4', 'e2e4'], ['c1c', 'cc4', 'cc3', 'c2c'], ['ce3', 'e1c', 'e2c', 'ce4'], ['c1c4', 'c2c3']]
         
-        0 classifier simplified
-        TODO
+        0 classifier simplified (k=15, 60% of the way through)
+        [((0, 21, 3, 5, 7, 35, 25, 18, 8, 11, 14, 33, 20, 12, 24), [array([ 84.66666667,  64.        ,  65.        ,  37.33333333, 4662982/7726160.0 [46:01<32:59, 1547.30it/s]
+        23.33333333, 118.66666667,  26.33333333, 132.        ,
+        80.66666667, 183.66666667,  44.        , -35.66666667,
+       -25.        ,  43.66666667, -64.33333333,  18.66666667])])]
+        [36, 0, 21, 3, 5, 44, 7, 35, 25, 2, 42, 18, 34, 32, 8, 17, 41, 11, 13, 26, 14, 33, 20, 12, 37, 24]
 
         1 classifier simplified
         [((36, 0, 21, 5, 7, 17, 14, 20), array([ 18.,   6.,  20., -16.,  24., -16., -54., -70., -19.]))]
