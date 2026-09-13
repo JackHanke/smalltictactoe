@@ -228,7 +228,7 @@ def filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusio
             y_s[0].append(-1)
 
         # else if 1 is legal, there is more than one legal move, and 0 is not optimal
-        elif board[1] == ' ' and (board.count(' ') > 1) and 1 not in moves:
+        if board[1] == ' ' and (board.count(' ') > 1) and 1 not in moves:
             rows_to_keep_s[1].append(idx)
             y_s[1].append(-1)
 
@@ -237,9 +237,10 @@ def filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusio
 
 
 def islinsep_recurse(
+        mon_str_dict,
         state_matrices,
         y_s,
-        column_indices,
+        columns,
         sols,
         memoize,
         verbose: bool = False,
@@ -247,41 +248,52 @@ def islinsep_recurse(
     '''
     top down remove-one-at-a-time for state matrices
     '''
-    state_tuple = tuple(column_indices)
+    if isinstance(columns[0], int):
+        columns_flattened = [mon_str_dict[elem] for elem in columns]
+    else:
+        columns_flattened = [mon_str_dict[elem] for group in columns for elem in group]
+
+    state_tuple = tuple(columns_flattened)
     if state_tuple in memoize: return
     memoize.add(state_tuple)
 
     res_x = []
     is_lin_sep = True
     for state_matrix, y in zip(state_matrices, y_s):
-        is_lin_sep_ind, res_x_ind = is_linearly_separable(state_matrix[:, column_indices], y)
+        is_lin_sep_ind, res_x_ind = is_linearly_separable(state_matrix[:, columns_flattened], y)
         res_x.append(res_x_ind)
         is_lin_sep = is_lin_sep and is_lin_sep_ind
 
 
     if is_lin_sep:
-        first_sol_indices = sols[0][0]
+        first_sol_columns = sols[0][0]
+        if isinstance(first_sol_columns, int):
+            current_size = len([mon_str_dict[elem] for elem in first_sol_columns])
+        else:
+            current_size = len([mon_str_dict[elem] for group in first_sol_columns for elem in group])
         # 
-        if len(column_indices) < len(first_sol_indices): 
-            sols[:] = [(column_indices, res_x)]
-            if verbose: print(f'{len(column_indices)} {column_indices} {res_x}')
-        elif len(column_indices) == len(first_sol_indices):
-            sols.append((column_indices, res_x))
-            if verbose: print(f'{len(column_indices)} {column_indices} {res_x}')
+        if len(columns_flattened) < current_size: 
+            sols[:] = [(columns, res_x)]
+            if verbose: print(f'{len(columns)} {columns} {res_x}')
+        elif len(columns_flattened) == current_size:
+            sols.append((columns, res_x))
+            if verbose: print(f'{len(columns)} {columns} {res_x}')
     else:
         return
 
     # try to remove one of the columns
-    for i in range(len(column_indices)):
-        reduced_column_indices = deepcopy(column_indices)
+    for i in range(len(columns)):
+        reduced_column_indices = deepcopy(columns)
         reduced_column_indices.pop(i)
 
         islinsep_recurse(
+            mon_str_dict,
             state_matrices,
             y_s,
             reduced_column_indices,
             sols,
-            memoize=memoize
+            memoize=memoize,
+            verbose=verbose,
         )
 
 def islinsep_k_subsets(
@@ -396,7 +408,7 @@ def rotate_feature_clockwise(feature_str: str, mon_str_dict):
     return rotated_feature_str
 
 
-def make_matix():
+def make_matrix(states):
 
     # create single feature state matrix
     feature_state_matrix, all_monomials, all_monomial_groups = build_feature_state_matrix(states, max_degree=2)
@@ -415,17 +427,14 @@ def make_matix():
         ['c1e1', 'c2e3', 'e4c4', 'e2c3', 'c1e2', 'c3e4', 'e3c4', 'e1c2'],
     ]
     starter_indices = [mon_str_dict[name] for group in starter_groups for name in group]
-    print(f'starter indices: {starter_indices}')
 
-    zero_classifier_idxs = [0, 21, 3, 35, 25, 2, 18, 8, 17, 11, 13, 14, 33, 20, 12, 24]
-    zero_classifier_coefs = [40,  30,  34,  70, 6,  -2,  80,  66,  -2, 110,  -8, 26, -22, -38,  24, -32, 5]
+    zero_classifier_idxs = [0, 3, 21, 25, 5, 18, 35, 8, 32, 34, 17, 11, 14, 12, 20, 33, 24]
+    zero_classifier_coefs = [ 61,  28,  27,  23,  22,  85,  82,  98,  80,  80,  79, 92,  15,  14,  -3,  -2, -68,  12.]
 
-    one_classifier_idxs =  [36, 0, 21, 5, 7, 17, 14, 20]
-    one_classifier_coefs =  [18, 6,  20, -16,  24, -16, -54, -70, -19]
+    one_classifier_idxs = [0, 21, 36, 7, 5, 17, 14, 12, 20, 24] 
+    one_classifier_coefs = [5,11,10,13,-13,-10,-31,10,-28,4,-14]
 
     mat = np.zeros((8, len(starter_indices)+1), dtype=np.int32)
-
-
 
     # one classifier coefs
     for idx, coef in zip(zero_classifier_idxs, zero_classifier_coefs[:-1]):
@@ -509,16 +518,12 @@ def board_str_to_feature_vec(board_str, add_bias_one: bool = False):
 
 
 def decision_function(board_str):
+    path = 'data/datasets/jsons/other.json'
+    with open(path, 'r') as f: states = json.load(f)
+
     inf_mask_val = -9999
 
-    mat = [[  0, -32,   0,  30,  40,  34,   0,   0, 110,  -8, -22,  26,  24, -38,   0,   0,  66,  -2,   0,   6,  -2,  80,   0,   0,   0,  70,   5],
-        [-32,   0,  34,   0,  30,  40,  -8,   0,   0, 110, -38, -22,  26,  24,  -2,   0,   0,  66,  80,   0,   6,  -2,   0,   0,  70,   0,   5],
-        [  0, -32,  40,  34,   0,  30, 110,  -8,   0,   0,  24, -38, -22,  26,  66,  -2,   0,   0,  -2,  80,   0,   6,   0,  70,   0,   0,   5],
-        [-32,   0,  30,  40,  34,   0,   0, 110,  -8,   0,  26,  24, -38, -22,   0,  66,  -2,   0,   6,  -2,  80,   0,  70,   0,   0,   0,   5],
-        [  0,   0,  18,  20,   6,   0,   0,   0,   0,   0,   0, -54,   0, -70,   0,   0,   0, -16,   0,   0,   0,   0,   0, -16,  24,   0, -19],
-        [  0,   0,   0,  18,  20,   6,   0,   0,   0,   0, -70,   0, -54,   0, -16,   0,   0,   0,   0,   0,   0,   0, -16,  24,   0,   0, -19],
-        [  0,   0,   6,   0,  18,  20,   0,   0,   0,   0,   0, -70,   0, -54,   0, -16,   0,   0,   0,   0,   0,   0,  24,   0,   0, -16, -19],
-        [  0,   0,  20,   6,   0,  18,   0,   0,   0,   0, -54,   0, -70,   0,   0,   0, -16,   0,   0,   0,   0,   0,   0,   0, -16,  24, -19]]
+    mat = make_matrix(states)
     mat = np.array(mat)
 
     feature_vec = board_str_to_feature_vec(board_str, add_bias_one=True)
@@ -566,6 +571,7 @@ def main():
 
     # create single feature state matrix
     feature_state_matrix, all_monomials, all_monomial_groups = build_feature_state_matrix(states, max_degree=2)
+    print(f'Number of monomial groups: {len(all_monomial_groups)}\n Number of monomials: {sum([len(group) for group in all_monomial_groups])}')
 
     # create feature indexing map
     mon_str_dict = {monomial_to_feature_str(mon):idx for idx, mon in enumerate(all_monomials)} | {idx:monomial_to_feature_str(mon) for idx, mon in enumerate(all_monomials)}
@@ -578,163 +584,76 @@ def main():
     num_moves_to_resolve = 3
     max_threshhold = 30
     best_so_far = float('inf')
+    feats_found = []
     prog = tqdm(itertools.product([0, 1], repeat=num_moves_to_resolve), total=2**num_moves_to_resolve)
     for inclusion_code in prog:
 
         # generate datasets, resolving positions with both 0 and 1 optimal 
         state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusion_code)
 
+        print(f'state matrix 0: {state_matrix_0.shape}')
+        print(f'state matrix 1: {state_matrix_1.shape}')
+
         is_lin_sep_0, res_x_0 = is_linearly_separable(state_matrix_0[:, starter_indices], y_0)
         is_lin_sep_1, res_x_1 = is_linearly_separable(state_matrix_1[:, starter_indices], y_1)
-        
+        is_lin_sep = is_lin_sep_0 and is_lin_sep_1
+
+        if not is_lin_sep:
+            print('Not linearly separable!')
+            return
         memoize = set()
-        sols = [(all_monomial_groups, res_x_0, res_x_1)]
+        sols = [(all_monomial_groups, (res_x_0, res_x_1))]
 
-        # islinsep_recurse(
-        #     mon_str_dict,
-        #     [state_matrix_0, state_matrix_1],
-        #     [y_0, y_1],
-        #     column_groups=all_monomial_groups,
-        #     sols_found=sols,
-        #     memoize=memoize
-        # )
+        islinsep_recurse(
+            mon_str_dict,
+            [state_matrix_0, state_matrix_1],
+            [y_0, y_1],
+            columns=all_monomial_groups,
+            sols=sols,
+            memoize=memoize,
+        )
 
-
-        # find first combination of features 
-        # sols = is_linearly_separable_smallest_groups_first_both(
-        #     mon_str_dict,
-        #     state_matrix_0,
-        #     state_matrix_1,
-        #     y_0,
-        #     y_1,
-        #     starter_groups,
-        #     max_threshold = max_threshhold,
-        #     early_stop = True,
-        # )
-
-        # if len(sols) > 0:
-        #     features_found = sols[0][0]
-        #     num_features_found = sum([len(subgroup) for subgroup in features_found])
-            # if num_features_found <= best_so_far:
-            #     best_so_far = num_features_found
-            #     prog.set_description(f'Best so far: {best_so_far}')
-            # print(f'### {num_features_found} ###')
+        if len(sols) > 0:
+            features_found = sols[0][0]
+            num_features_found = sum([len(subgroup) for subgroup in features_found])
+            if num_features_found <= best_so_far:
+                best_so_far = num_features_found
+                feats_found.append([features_found, inclusion_code])
+                prog.set_description(f'Best so far: {best_so_far}')
             # print(features_found)
-            # print(inclusion_code)
-
             # print(f'Inclusion code {inclusion_code} has feature count: {num_features_found}')
+
+    print('### Features Found + Inclusion Code ###')
+    for thing in feats_found: print(thing)
 
     prog = tqdm(itertools.product([0, 1], repeat=num_moves_to_resolve), total=2**num_moves_to_resolve)
     best_so_far = float('inf')
     inclusion_code = (1,1,1)
-    starter_groups = [['c1', 'c4', 'c2', 'c3'], ['c3e4', 'c1e1', 'e3c4', 'e1c2', 'c2e3', 'e4c4', 'c1e2', 'e2c3'], ['e1e2', 'e1e3', 'e3e4', 'e2e4'], ['c1c', 'cc4', 'cc3', 'c2c'], ['ce3', 'e1c', 'e2c', 'ce4'], ['c1c4', 'c2c3']]
-    # starter_groups = [['c4', 'c2', 'c1', 'c3'], ['c2e3', 'e1c2', 'c1e2', 'e3c4', 'c3e4', 'e2c3', 'c1e1', 'e4c4'], ['c1c2', 'c2c4', 'c3c4', 'c1c3'], ['e1e3', 'e3e4', 'e1e2', 'e2e4'], ['c1c', 'cc4', 'cc3', 'c2c'], ['e1c', 'e2c', 'ce4', 'ce3'], ['e2e3', 'e1e4'], ['c1c4', 'c2c3']]
-    # (0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+    starter_groups = [['c4', 'c3', 'c2', 'c1'], ['c1e2', 'e3c4', 'e4c4', 'c2e3', 'c3e4', 'c1e1', 'e2c3', 'e1c2'], ['e3e4', 'e1e3', 'e1e2', 'e2e4'], ['c2c', 'cc3', 'cc4', 'c1c'], ['ce3', 'ce4', 'e2c', 'e1c'], ['c1c4', 'c2c3']]
 
     state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusion_code)
     starter_indices = [mon_str_dict[name] for group in starter_groups for name in group]
 
-    # further reduce separetly
-    # sols = is_linearly_separable_smallest_groups_first(
-    #     mon_str_dict,
-    #     state_matrix_0,
-    #     y_0,
-    #     starter_groups,
-    #     max_threshold = max_threshhold,
-    #     early_stop = True,
-    # )
+    print(f'final state matrix 0: {state_matrix_0.shape}')
+    print(f'final state matrix 1: {state_matrix_1.shape}')
 
+    # for (state_mat, y_vec, k) in [[state_matrix_1, y_1,8], [state_matrix_0, y_0,16]]:
+    # for (state_mat, y_vec, k) in [[state_matrix_0, y_0,16]]:
+    for (state_mat, y_vec, k) in [[state_matrix_1, y_1, 10]]:
 
-    k = 10
-    sols = []
-    while len(sols) == 0:
-        k += 1
-        sols = islinsep_k_subsets(
-            [state_matrix_0],
-            [y_0],
-            starter_indices,
-            k,
-            early_stop=True
-        )
-
-        '''
-        c1 e1 c2
-        e2 c  e3
-        c3 e4 c4
-        
-        [
-            ['c1', 'c4', 'c2', 'c3'],
-            ['c3e4', 'c1e1', 'e3c4', 'e1c2', 'c2e3', 'e4c4', 'c1e2', 'e2c3'],
-            ['e1e2', 'e1e3', 'e3e4', 'e2e4'],
-            ['c1c', 'cc4', 'cc3', 'c2c'],
-            ['ce3', 'e1c', 'e2c', 'ce4'],
-            ['c1c4', 'c2c3']
-        ]
-
-        [
-            36, 21, 0, 3,
-            5, 44, 7, 35, 25, 2, 42, 18,
-            34, 32, 8, 17,
-            41, 11, 13, 26,
-            14, 33, 20, 12,
-            37, 24
-        ]
-
-        [
-            ['c1', 'c2', 'c4', 'c3'],
-            ['c3e4', 'c1e1', 'e3c4', 'e1c2', 'c2e3', 'e4c4', 'c1e2', 'e2c3'],
-            ['e1e2', 'e1e3', 'e3e4', 'e2e4'],
-            ['c1c', 'c2c', 'cc4', 'cc3'],
-            ['e1c', 'ce3', 'ce4', 'e2c'],
-            ['c1c4', 'c2c3']
-        ]
-
-        [
-            36, 0, 21, 3,
-            5, 44, 7, 35, 25, 2, 42, 18,
-            34, 32, 8, 17,
-            41, 26, 11, 13, 
-            33, 14, 12, 20,
-            37, 24
-        ]
-        
-        0 classifier simplified (k=16, 60% of the way through)
-        ((0, 21, 3, 35, 25, 2, 18, 8, 17, 11, 13, 14, 33, 20, 12, 24),
-        array([ 40.,  30.,  34.,  70.,   6.,  -2.,  80.,  66.,  -2., 110.,  -8., 26., -22., -38.,  24., -32.,   5.])
-
-
-        1 classifier simplified
-        [((36, 0, 21, 5, 7, 17, 14, 20),
-        array([ 18.,   6.,  20., -16.,  24., -16., -54., -70., -19.]))]
-
-
-        15 solution (too ugly)
-        ((0, 21, 3, 5, 7, 35, 25, 18, 8, 11, 14, 33, 20, 12, 24), 
-        array([ 84.66666667,  64.        ,  65.        ,  37.33333333, 
-        23.33333333, 118.66666667,  26.33333333, 132.        ,
-        80.66666667, 183.66666667,  44.        , -35.66666667,
-        -25.        ,  43.66666667, -64.33333333,  18.66666667])
-        '''
-
-        # sols = is_linearly_separable_smallest_groups_first(
-        #     mon_str_dict,
-        #     state_matrix_1,
-        #     y_1,
-        #     starter_groups,
-        #     max_threshold = max_threshhold,
-        #     early_stop = True,
-        # )
-
-        if sols:
-            # features_found = sols[0][0]
-            # num_features_found = sum([len(subgroup) for subgroup in features_found])
-
-            # if num_features_found < best_so_far:
-            #     best_so_far = num_features_found
-            #     print(num_features_found)
-            #     print(features_found)
-            print(sols)
-            print(starter_indices)
+        sols = []
+        while len(sols) == 0:
+            sols = islinsep_k_subsets(
+                [state_mat],
+                [y_vec],
+                starter_indices,
+                k,
+                early_stop=True,
+            )
+            if sols:
+                for sol in sols: print(sol)
+                break
+            k += 1
 
 
 
