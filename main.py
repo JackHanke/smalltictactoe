@@ -8,6 +8,8 @@ from copy import deepcopy
 from scipy.optimize import linprog
 from scipy.special import binom
 
+from data.reps import *
+
 
 def valid_subsets(list_of_lists, max_threshold):
     # Pre-extract lengths to avoid repeating len() during recursion
@@ -220,8 +222,8 @@ def filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusio
             rows_to_keep_s[1].append(idx)
             y_s[1].append(1)
 
-        # else if 0 is legal, there is more than one legal move, and 0 is not optimal
-        elif board[0] == ' ' and (board.count(' ') > 1) and 0 not in moves:
+        # if 0 is legal, there is more than one legal move, and 0 is not optimal
+        if board[0] == ' ' and (board.count(' ') > 1) and 0 not in moves:
             rows_to_keep_s[0].append(idx)
             y_s[0].append(-1)
 
@@ -342,7 +344,221 @@ def islinsep_smallest_groups_first(
                 
         return sols
 
-        
+
+def feature_string_to_string_parts(feature_str):
+    if len(feature_str) == 2:
+        string_parts = [feature_str]
+    elif len(feature_str) == 3:
+        if feature_str[2] == 'c':
+            string_parts = [feature_str[0:2], feature_str[2]]
+        elif feature_str[0] == 'c' and feature_str[1] in ('c','e'):
+            string_parts = [feature_str[0], feature_str[1:3]]
+    elif len(feature_str) == 4:
+        string_parts = [feature_str[0:2], feature_str[2:4]]
+    else:
+        raise Exception('Uh oh!')
+    
+    return string_parts
+
+def rotate_feature_clockwise(feature_str: str, mon_str_dict):
+    # NOTE awful, but only way i could think to do it
+
+    string_parts = feature_string_to_string_parts(feature_str)
+
+    rotate_map = {
+        'c':'c',
+        'c1':'c2',
+        'c2':'c4',
+        'c3':'c1',
+        'c4':'c3',
+        'e1':'e3',
+        'e2':'e1',
+        'e3':'e4',
+        'e4':'e2',
+    }
+
+    rotated_string_parts = []
+    for part in string_parts:
+        rotated_string_parts.append(rotate_map[part])
+
+    if len(rotated_string_parts) > 1:
+        # check if this or the swap is in the conversion dict
+        temp_rotated_feature_str = "".join(rotated_string_parts)
+        temp_flipped_rotated_feature_str = "".join([rotated_string_parts[1], rotated_string_parts[0]])
+        if temp_rotated_feature_str in mon_str_dict:
+            rotated_feature_str = temp_rotated_feature_str
+        elif temp_flipped_rotated_feature_str in mon_str_dict:
+            rotated_feature_str = temp_flipped_rotated_feature_str
+        else:
+            raise Exception('This shouldnt happen')
+    else:
+        rotated_feature_str = "".join(rotated_string_parts)
+    return rotated_feature_str
+
+
+def make_matix():
+
+    # create single feature state matrix
+    feature_state_matrix, all_monomials, all_monomial_groups = build_feature_state_matrix(states, max_degree=2)
+
+    # create feature indexing map
+    mon_str_dict = {monomial_to_feature_str(mon):idx for idx, mon in enumerate(all_monomials)} | {idx:monomial_to_feature_str(mon) for idx, mon in enumerate(all_monomials)}
+
+    # define what groups to start the search with
+
+    starter_groups = [
+        ['c1c4', 'c2c3'],
+        ['c1', 'c2', 'c4', 'c3'],
+        ['c1c', 'c2c', 'cc4', 'cc3'],
+        ['e1c', 'ce3', 'ce4', 'e2c'],
+        ['e1e2', 'e1e3', 'e3e4', 'e2e4'],
+        ['c1e1', 'c2e3', 'e4c4', 'e2c3', 'c1e2', 'c3e4', 'e3c4', 'e1c2'],
+    ]
+    starter_indices = [mon_str_dict[name] for group in starter_groups for name in group]
+    print(f'starter indices: {starter_indices}')
+
+    zero_classifier_idxs = [0, 21, 3, 35, 25, 2, 18, 8, 17, 11, 13, 14, 33, 20, 12, 24]
+    zero_classifier_coefs = [40,  30,  34,  70, 6,  -2,  80,  66,  -2, 110,  -8, 26, -22, -38,  24, -32, 5]
+
+    one_classifier_idxs =  [36, 0, 21, 5, 7, 17, 14, 20]
+    one_classifier_coefs =  [18, 6,  20, -16,  24, -16, -54, -70, -19]
+
+    mat = np.zeros((8, len(starter_indices)+1), dtype=np.int32)
+
+
+
+    # one classifier coefs
+    for idx, coef in zip(zero_classifier_idxs, zero_classifier_coefs[:-1]):
+
+        # convert global monomial index to matrix column index
+        feature_name = mon_str_dict[idx]
+
+        for i in range(0,4):
+            # print((i, feature_name))
+
+            temp = mon_str_dict[feature_name]
+            mat_idx = starter_indices.index(temp)
+            mat[i][mat_idx] = coef
+
+            # need to rotate mat_idx
+            feature_name = rotate_feature_clockwise(feature_name, mon_str_dict)
+
+    # one classifier coefs
+    for idx, coef in zip(one_classifier_idxs, one_classifier_coefs[:-1]):
+
+        # convert global monomial index to matrix column index
+        feature_name = mon_str_dict[idx]
+
+        for i in range(4,8):
+            # print((i, feature_name))
+
+            temp = mon_str_dict[feature_name]
+            mat_idx = starter_indices.index(temp)
+            mat[i][mat_idx] = coef
+
+            # need to rotate mat_idx
+            feature_name = rotate_feature_clockwise(feature_name, mon_str_dict)
+
+    # biases for 0 and 1
+    for i in range(0,4):
+        mat[i][-1] = zero_classifier_coefs[-1]
+    for i in range(4,8):
+        mat[i][-1] = one_classifier_coefs[-1]
+
+    return mat
+
+
+def board_str_to_feature_vec(board_str, add_bias_one: bool = False):
+
+    # def board_to_feature_vector(board_str):
+    rep = trinary_board_rep(board_str)
+
+    starter_groups = [
+        ['c1c4', 'c2c3'],
+        ['c1', 'c2', 'c4', 'c3'],
+        ['c1c', 'c2c', 'cc4', 'cc3'],
+        ['e1c', 'ce3', 'ce4', 'e2c'],
+        ['e1e2', 'e1e3', 'e3e4', 'e2e4'],
+        ['c1e1', 'c2e3', 'e4c4', 'e2c3', 'c1e2', 'c3e4', 'e3c4', 'e1c2'],
+    ]
+    flattened_starter_groups = [name for group in starter_groups for name in group]
+
+    feature_idx_map = {
+        'c1':0,
+        'e1':1,
+        'c2':2,
+        'e2':3,
+        'c':4,
+        'e3':5,
+        'c3':6,
+        'e4':7,
+        'c4':8,
+    }
+    feature_vec = []
+    for feature_str in flattened_starter_groups:
+        string_parts = feature_string_to_string_parts(feature_str)
+
+        prod = 1
+        for term in string_parts:
+            prod *= rep[feature_idx_map[term]]
+        feature_vec.append(prod)
+
+    if add_bias_one: feature_vec.append(1)
+
+    return np.array(feature_vec, dtype=np.int32)
+
+
+def decision_function(board_str):
+    inf_mask_val = -9999
+
+    mat = [[  0, -32,   0,  30,  40,  34,   0,   0, 110,  -8, -22,  26,  24, -38,   0,   0,  66,  -2,   0,   6,  -2,  80,   0,   0,   0,  70,   5],
+        [-32,   0,  34,   0,  30,  40,  -8,   0,   0, 110, -38, -22,  26,  24,  -2,   0,   0,  66,  80,   0,   6,  -2,   0,   0,  70,   0,   5],
+        [  0, -32,  40,  34,   0,  30, 110,  -8,   0,   0,  24, -38, -22,  26,  66,  -2,   0,   0,  -2,  80,   0,   6,   0,  70,   0,   0,   5],
+        [-32,   0,  30,  40,  34,   0,   0, 110,  -8,   0,  26,  24, -38, -22,   0,  66,  -2,   0,   6,  -2,  80,   0,  70,   0,   0,   0,   5],
+        [  0,   0,  18,  20,   6,   0,   0,   0,   0,   0,   0, -54,   0, -70,   0,   0,   0, -16,   0,   0,   0,   0,   0, -16,  24,   0, -19],
+        [  0,   0,   0,  18,  20,   6,   0,   0,   0,   0, -70,   0, -54,   0, -16,   0,   0,   0,   0,   0,   0,   0, -16,  24,   0,   0, -19],
+        [  0,   0,   6,   0,  18,  20,   0,   0,   0,   0,   0, -70,   0, -54,   0, -16,   0,   0,   0,   0,   0,   0,  24,   0,   0, -16, -19],
+        [  0,   0,  20,   6,   0,  18,   0,   0,   0,   0, -54,   0, -70,   0,   0,   0, -16,   0,   0,   0,   0,   0,   0,   0, -16,  24, -19]]
+    mat = np.array(mat)
+
+    feature_vec = board_str_to_feature_vec(board_str, add_bias_one=True)
+
+    matprod = mat @ feature_vec.T
+
+    matrix_move_code = [0,2,8,6,1,5,7,3]
+
+    ## mask illegal moves
+    illegal_idxs = [i for i, c in enumerate(board_str) if c != ' ']
+    is_illegal = []
+    for code in matrix_move_code:
+        if code in illegal_idxs: is_illegal.append(True)
+        else: is_illegal.append(False)
+    is_illegal = np.array(is_illegal, dtype=np.bool)
+    matprod[is_illegal] = inf_mask_val
+    
+    ## process vector
+    moves_produced = []
+    for idx, val in zip(matrix_move_code, matprod.tolist()):
+        # if greater than 0 element, this move is optimal
+        if val > 0:
+            moves_produced.append(idx)
+
+    # 
+    if len(moves_produced) == 0:
+        # if the center is illegal 
+        if 4 in illegal_idxs:
+            for idx, val in zip(matrix_move_code, matprod.tolist()):
+                # if less than 0 element, this move is optimal
+                if val < 0 and val > inf_mask_val:
+                    moves_produced.append(idx)
+            # print('umm')
+        # else move to the center
+        else:
+            moves_produced.append(4)
+
+    return moves_produced
+
+
 def main():
     '''
     main function for finding a small human-memorizable solution to non-trivial tictactoe positions
@@ -442,18 +658,62 @@ def main():
         )
 
         '''
-        [['c1', 'c4', 'c2', 'c3'], ['c3e4', 'c1e1', 'e3c4', 'e1c2', 'c2e3', 'e4c4', 'c1e2', 'e2c3'], ['e1e2', 'e1e3', 'e3e4', 'e2e4'], ['c1c', 'cc4', 'cc3', 'c2c'], ['ce3', 'e1c', 'e2c', 'ce4'], ['c1c4', 'c2c3']]
+        c1 e1 c2
+        e2 c  e3
+        c3 e4 c4
         
-        0 classifier simplified (k=15, 60% of the way through)
-        [((0, 21, 3, 5, 7, 35, 25, 18, 8, 11, 14, 33, 20, 12, 24), [array([ 84.66666667,  64.        ,  65.        ,  37.33333333, 4662982/7726160.0 [46:01<32:59, 1547.30it/s]
-        23.33333333, 118.66666667,  26.33333333, 132.        ,
-        80.66666667, 183.66666667,  44.        , -35.66666667,
-       -25.        ,  43.66666667, -64.33333333,  18.66666667])])]
-        [36, 0, 21, 3, 5, 44, 7, 35, 25, 2, 42, 18, 34, 32, 8, 17, 41, 11, 13, 26, 14, 33, 20, 12, 37, 24]
+        [
+            ['c1', 'c4', 'c2', 'c3'],
+            ['c3e4', 'c1e1', 'e3c4', 'e1c2', 'c2e3', 'e4c4', 'c1e2', 'e2c3'],
+            ['e1e2', 'e1e3', 'e3e4', 'e2e4'],
+            ['c1c', 'cc4', 'cc3', 'c2c'],
+            ['ce3', 'e1c', 'e2c', 'ce4'],
+            ['c1c4', 'c2c3']
+        ]
+
+        [
+            36, 21, 0, 3,
+            5, 44, 7, 35, 25, 2, 42, 18,
+            34, 32, 8, 17,
+            41, 11, 13, 26,
+            14, 33, 20, 12,
+            37, 24
+        ]
+
+        [
+            ['c1', 'c2', 'c4', 'c3'],
+            ['c3e4', 'c1e1', 'e3c4', 'e1c2', 'c2e3', 'e4c4', 'c1e2', 'e2c3'],
+            ['e1e2', 'e1e3', 'e3e4', 'e2e4'],
+            ['c1c', 'c2c', 'cc4', 'cc3'],
+            ['e1c', 'ce3', 'ce4', 'e2c'],
+            ['c1c4', 'c2c3']
+        ]
+
+        [
+            36, 0, 21, 3,
+            5, 44, 7, 35, 25, 2, 42, 18,
+            34, 32, 8, 17,
+            41, 26, 11, 13, 
+            33, 14, 12, 20,
+            37, 24
+        ]
+        
+        0 classifier simplified (k=16, 60% of the way through)
+        ((0, 21, 3, 35, 25, 2, 18, 8, 17, 11, 13, 14, 33, 20, 12, 24),
+        array([ 40.,  30.,  34.,  70.,   6.,  -2.,  80.,  66.,  -2., 110.,  -8., 26., -22., -38.,  24., -32.,   5.])
+
 
         1 classifier simplified
-        [((36, 0, 21, 5, 7, 17, 14, 20), array([ 18.,   6.,  20., -16.,  24., -16., -54., -70., -19.]))]
-        [36, 0, 21, 3, 5, 44, 7, 35, 25, 2, 42, 18, 34, 32, 8, 17, 41, 11, 13, 26, 14, 33, 20, 12, 37, 24]
+        [((36, 0, 21, 5, 7, 17, 14, 20),
+        array([ 18.,   6.,  20., -16.,  24., -16., -54., -70., -19.]))]
+
+
+        15 solution (too ugly)
+        ((0, 21, 3, 5, 7, 35, 25, 18, 8, 11, 14, 33, 20, 12, 24), 
+        array([ 84.66666667,  64.        ,  65.        ,  37.33333333, 
+        23.33333333, 118.66666667,  26.33333333, 132.        ,
+        80.66666667, 183.66666667,  44.        , -35.66666667,
+        -25.        ,  43.66666667, -64.33333333,  18.66666667])
         '''
 
         # sols = is_linearly_separable_smallest_groups_first(
@@ -501,6 +761,8 @@ if __name__ == '__main__':
     # find_minimal_features_for_corners_and_edges()
 
     main()
+
+    # build_solver()
 
     '''
     c1 e1 c2
