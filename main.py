@@ -483,12 +483,12 @@ def board_str_to_feature_vec(board_str, add_bias_one: bool = False):
     rep = trinary_board_rep(board_str)
 
     starter_groups = [
-        ['c1c4', 'c2c3'],
-        ['c1', 'c2', 'c4', 'c3'],
-        ['c1c', 'c2c', 'cc4', 'cc3'],
-        ['e1c', 'ce3', 'ce4', 'e2c'],
-        ['e1e2', 'e1e3', 'e3e4', 'e2e4'],
-        ['c1e1', 'c2e3', 'e4c4', 'e2c3', 'c1e2', 'c3e4', 'e3c4', 'e1c2'],
+        ['c1c4', 'c2c3'],                                                 # 2
+        ['c1', 'c2', 'c4', 'c3'],                                         # 4
+        ['c1c', 'c2c', 'cc4', 'cc3'],                                     # 4
+        ['e1c', 'ce3', 'ce4', 'e2c'],                                     # 4
+        ['e1e2', 'e1e3', 'e3e4', 'e2e4'],                                 # 4
+        ['c1e1', 'c2e3', 'e4c4', 'e2c3', 'c1e2', 'c3e4', 'e3c4', 'e1c2'], # 8
     ]
     flattened_starter_groups = [name for group in starter_groups for name in group]
 
@@ -497,7 +497,7 @@ def board_str_to_feature_vec(board_str, add_bias_one: bool = False):
         'e1':1,
         'c2':2,
         'e2':3,
-        'c':4,
+        'c' :4,
         'e3':5,
         'c3':6,
         'e4':7,
@@ -570,7 +570,8 @@ def main():
     '''
 
     # create single feature state matrix
-    feature_state_matrix, all_monomials, all_monomial_groups = build_feature_state_matrix(states, max_degree=2)
+    max_degree = 3
+    feature_state_matrix, all_monomials, all_monomial_groups = build_feature_state_matrix(states, max_degree=max_degree)
     print(f'Number of monomial groups: {len(all_monomial_groups)}\n Number of monomials: {sum([len(group) for group in all_monomial_groups])}')
 
     # create feature indexing map
@@ -581,26 +582,29 @@ def main():
     starter_indices = [mon_str_dict[name] for group in starter_groups for name in group]
 
     # for all possible ways to resolve 0 1 optimality
-    num_moves_to_resolve = 3
+    num_moves_to_resolve = 15
     max_threshhold = 30
     best_so_far = float('inf')
     feats_found = []
     prog = tqdm(itertools.product([0, 1], repeat=num_moves_to_resolve), total=2**num_moves_to_resolve)
+    found_one = False
     for inclusion_code in prog:
 
         # generate datasets, resolving positions with both 0 and 1 optimal 
         state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusion_code)
 
-        print(f'state matrix 0: {state_matrix_0.shape}')
-        print(f'state matrix 1: {state_matrix_1.shape}')
+        # print(f'state matrix 0: {state_matrix_0.shape}')
+        # print(f'state matrix 1: {state_matrix_1.shape}')
 
         is_lin_sep_0, res_x_0 = is_linearly_separable(state_matrix_0[:, starter_indices], y_0)
         is_lin_sep_1, res_x_1 = is_linearly_separable(state_matrix_1[:, starter_indices], y_1)
         is_lin_sep = is_lin_sep_0 and is_lin_sep_1
 
         if not is_lin_sep:
-            print('Not linearly separable!')
-            return
+            # print('Not linearly separable!')
+            continue
+        else:
+            found_one = True
         memoize = set()
         sols = [(all_monomial_groups, (res_x_0, res_x_1))]
 
@@ -623,6 +627,9 @@ def main():
             # print(features_found)
             # print(f'Inclusion code {inclusion_code} has feature count: {num_features_found}')
 
+    if not found_one:
+        print(f'Non linearly seperable features found at max degree: {max_degree}')
+        return
     print('### Features Found + Inclusion Code ###')
     for thing in feats_found: print(thing)
 
@@ -637,10 +644,7 @@ def main():
     print(f'final state matrix 0: {state_matrix_0.shape}')
     print(f'final state matrix 1: {state_matrix_1.shape}')
 
-    # for (state_mat, y_vec, k) in [[state_matrix_1, y_1,8], [state_matrix_0, y_0,16]]:
-    # for (state_mat, y_vec, k) in [[state_matrix_0, y_0,16]]:
-    for (state_mat, y_vec, k) in [[state_matrix_1, y_1, 10]]:
-
+    for (state_mat, y_vec, k) in [[state_matrix_1, y_1,10], [state_matrix_0, y_0,16]]:
         sols = []
         while len(sols) == 0:
             sols = islinsep_k_subsets(
@@ -656,8 +660,6 @@ def main():
             k += 1
 
 
-
-
 if __name__ == '__main__':
     path = 'data/datasets/jsons/other.json'
     with open(path, 'r') as f: states = json.load(f)
@@ -669,76 +671,4 @@ if __name__ == '__main__':
     '''
     print(key_str)
 
-    # for move_of_interest in [0]:
-        
-    #     is_linear = find_small_linearly_seperable_dsets(
-    #         states=states,
-    #         move_of_interest=move_of_interest,
-    #         max_degree=2,
-    #     )
-    
-    # find_minimal_features_for_corners_and_edges()
-
     main()
-
-    # build_solver()
-
-    '''
-    c1 e1 c2
-    e2 c  e3
-    c3 e4 c4
-
-    1:
-
-    -  2 c4   -  2 c3   +  6 c3c4 -  5 e3e4 -  5 e2e4 -  6  
-    +  1 e4   +  2 c3c4 -  2 e3e4 -  2 e2e4 +  2 c1c2 -  2  
-    +  3 c3c4 -  2 e3e4 -  2 e2e4 +  2 c2   +  2 c1   -  3  *
-
-    0: 
-
-    c1,c2,c3,c4,e1e2,e1e3,e2e4,e3e4,c1c2,c1c3,c2c4,c3c4, 'cc4', 'cc3', 'ce3'   [  0.  -2.   2.  18.  42.  26.  18.  44.   0.   0. -12. -16.  68. -16.  26. -17.]
-    c1,c2,c3,c4,e1e2,e1e3,e2e4,e3e4,c1c2,c1c3,c2c4,c3c4, 'cc4', 'cc3', 'e1c'   [  0.  14.  12.  18.  28.  20.  20.  32.   0.   0. -12. -14.  40.  14. -16. -13.]
-
-    
-    the minimal amount of features (that include their symmetric variants) that can both linearly separate 0 and 1 is:
-
-    20 
-    ['c3', 'c4', 'c1', 'c2'],                                           # corners
-    ['cc3', 'c2c', 'cc4', 'c1c'],                                       # corners + center
-    ['e1c', 'e2c', 'ce3', 'ce4'],                                       # edges + center
-    ['e4c4', 'c3e4', 'c2e3', 'e1c2', 'e2c3', 'e3c4', 'c1e2', 'c1e1'],   # all (corner, adjacent edge) pairs
-
-    OR the even better
-
-    20 
-    ['c2', 'c1', 'c4', 'c3']          # corners
-    ['c2c4', 'c3c4', 'c1c2', 'c1c3']  # adjacent corners
-    ['e1e3', 'e3e4', 'e1e2', 'e2e4']  # adjacent edges
-    ['c1c', 'cc3', 'c2c', 'cc4']      # corners * center
-    ['e1c', 'ce4', 'e2c', 'ce3']      # edges * center
-    [ 1.  0.  2.  1. -1. -1.  0.  0.  2.  4.  4.  2.  0.  1.  1.  8. -0.  2.  0.  2. -1.]
-    [ 1.  1.  0.  0.  0.  2.  1.  0.  0. -2.  0. -2. -0. -0. -0. -0.  0. -0. -2. -2. -2.]
-
-    Corner discriminator len: 8
-    ['c2', 'c4', 'c3', 'e3e4', 'e1e2', 'cc4', 'e1c', 'ce3']
-    [ 2. 10.  2. 18.  6. 44. -6. 12. -7.]
-    ['c2', 'c4', 'c3', 'e3e4', 'e1e2', 'cc4', 'ce4', 'e2c']
-    [ 2. 10.  2. 18.  6. 44. 12. -6. -7.]
-    ['c2', 'c4', 'c3', 'e3e4', 'e1e2', 'cc4', 'ce4', 'ce3']
-    [ 2.  8.  2. 14. 18. 62. 14. 14. -5.]
-    ['c2', 'c4', 'c3c4', 'e3e4', 'e1e2', 'cc4', 'ce4', 'e2c']
-    [ 2. 14. -2. 24.  8. 60. 16. -8. -9.]
-    ['c2', 'c4', 'c3c4', 'e3e4', 'e1e2', 'cc4', 'ce4', 'ce3']
-    [ 2.  8. -2. 12.  8. 42. 12.  6. -3.]
-    ['c4', 'c3', 'c2c4', 'e3e4', 'e1e2', 'cc4', 'e1c', 'ce3']
-    [14.  2. -2. 24.  8. 60. -8. 16. -9.]
-    ['c4', 'c3', 'c2c4', 'e3e4', 'e1e2', 'cc4', 'ce4', 'ce3']
-    [ 8.  2. -2. 12.  8. 42. 12.  6. -3.]
-
-    ['c4', 'c2c4', 'c3c4', 'e3e4', 'e1e2', 'cc4', 'ce4', 'ce3']
-    [ 3. -2. -2.  6.  4. 19.  6.  3. -2.] * 
-
-    TODO filter discriminators further
-    TODO figure out how to handle 0,1 positions
-
-    '''
