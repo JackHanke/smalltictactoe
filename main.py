@@ -210,27 +210,27 @@ def filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusio
             resolved_move = inclusion_code[count]
             count += 1
             rows_to_keep_s[resolved_move].append(idx)
-            y_s[resolved_move].append(1)
+            y_s[resolved_move].append(0)
 
         # ... only 0 is optimal
         elif (board.count(' ') > 1) and (4 not in moves) and (0 in moves) and len(moves) != board.count(' '):
             rows_to_keep_s[0].append(idx)
-            y_s[0].append(1)
+            y_s[0].append(0)
 
         # ... only 1 is optimal
         elif (board.count(' ') > 1) and (4 not in moves) and (1 in moves) and len(moves) != board.count(' '):
             rows_to_keep_s[1].append(idx)
-            y_s[1].append(1)
+            y_s[1].append(0)
 
         # if 0 is legal, there is more than one legal move, and 0 is not optimal
         if board[0] == ' ' and (board.count(' ') > 1) and 0 not in moves:
             rows_to_keep_s[0].append(idx)
-            y_s[0].append(-1)
+            y_s[0].append(1)
 
-        # else if 1 is legal, there is more than one legal move, and 0 is not optimal
+        # if 1 is legal, there is more than one legal move, and 0 is not optimal
         if board[1] == ' ' and (board.count(' ') > 1) and 1 not in moves:
             rows_to_keep_s[1].append(idx)
-            y_s[1].append(-1)
+            y_s[1].append(1)
 
     # 
     return feature_state_matrix[rows_to_keep_s[0]], y_s[0], feature_state_matrix[rows_to_keep_s[1]], y_s[1]
@@ -556,7 +556,6 @@ def decision_function(board_str):
                 # if less than 0 element, this move is optimal
                 if val < 0 and val > inf_mask_val:
                     moves_produced.append(idx)
-            # print('umm')
         # else move to the center
         else:
             moves_produced.append(4)
@@ -582,14 +581,13 @@ def main():
     starter_indices = [mon_str_dict[name] for group in starter_groups for name in group]
 
     # for all possible ways to resolve 0 1 optimality
-    num_moves_to_resolve = 15
     max_threshhold = 30
+    found_one = False
     best_so_far = float('inf')
     feats_found = []
+    num_moves_to_resolve = 15
     prog = tqdm(itertools.product([0, 1], repeat=num_moves_to_resolve), total=2**num_moves_to_resolve)
-    found_one = False
     for inclusion_code in prog:
-
         # generate datasets, resolving positions with both 0 and 1 optimal 
         state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusion_code)
 

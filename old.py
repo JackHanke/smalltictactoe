@@ -14,21 +14,24 @@ from experiments import *
 if __name__ == "__main__":
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # seed = 10
+    # random.seed(seed)
+    # np.random.seed(seed)       
+    # torch.manual_seed(seed)
+
     num_layers = 1
-    HIDDEN_DIMS = [5 for _ in range(num_layers)]
+    HIDDEN_DIMS = [9 for _ in range(num_layers)]
     rep_length = 9
     board_rep_fn = trinary_board_rep
     model = TicTacToeNet(
         hidden_sizes=HIDDEN_DIMS,
-        input_size=rep_length
+        input_size=rep_length,
+        do_illegal_move_masking=True,
     ).to(DEVICE)
     num_params = sum(p.numel() for p in model.parameters())
     print(f'Model parameters: {num_params}')
 
-    PATH = 'models/checkpoints/smallest_possible_experiment/nn_104_[5]_1_9_True_76.pth'
-    model.load_state_dict(torch.load(PATH, weights_only=True))
-
-    DATA_PATH = "data/datasets/jsons/non_block_or_win_filtered.json"
+    DATA_PATH = "data/datasets/jsons/other.json"
     print(f'DATA PATH: {DATA_PATH}')
     data_tensor, moves_mask = data_json_to_tensor(
         data_json_path=DATA_PATH,
@@ -39,15 +42,20 @@ if __name__ == "__main__":
 
     # train_to_perfection(
     #     model=model,
-    #     dataset=dataset,
-    #     max_epochs=10_000,
+    #     data_tensor=data_tensor,
+    #     moves_mask=moves_mask,
+    #     max_epochs=25_000,
     #     weight_decay=0.0,
     #     one_right_answer=False,
-    #     learning_rate=1e-2,
     #     device=DEVICE,
-    #     verbose=True
+    #     save_checkpoint=True,
+    #     verbose=True,
+    #     seed = seed,
+    #     name='other'
     # )
 
+    PATH = 'models/checkpoints/nnother_extend_[9, 9, 9]_180_2026-10-25-21:16:42.pth'
+    model.load_state_dict(torch.load(PATH, weights_only=True))
     prune_train_loop(
         model=model,
         data_tensor=data_tensor,

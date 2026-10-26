@@ -2,6 +2,31 @@ import torch
 import torch.nn as nn
 
 
+class tttclassifer(nn.Module):
+    def __init__(self,
+        hidden_sizes: list[int],
+        input_size: int = 9,
+    ):
+        super(tttclassifer, self).__init__()
+
+        layers = []
+        self.hidden_sizes = hidden_sizes
+        hidden_sizes = [input_size] + hidden_sizes + [2]
+        self.hidden_sizes = hidden_sizes
+
+        for i, o in zip(hidden_sizes[:-1], hidden_sizes[1:]):
+            layers.append(nn.Linear(i, o))
+            layers.append(nn.ReLU()) # Add activation between layers
+        # 3. Remove the last ReLU (usually not needed on the output layer)
+        layers.pop()
+        self.model = nn.Sequential(*layers)
+
+    def forward(self, x):
+        y = self.model(x)
+        return y
+
+
+
 class TicTacToeNet(nn.Module):
     def __init__(self,
             hidden_sizes: list[int],

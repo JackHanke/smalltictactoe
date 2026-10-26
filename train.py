@@ -70,6 +70,7 @@ def train_to_perfection(
         weight_decay: float = 0.0,
         one_right_answer: bool = True,
         verbose: bool = False,
+        to_perfection: bool = True,
         seed: int = None,
     ):
     model.zero_grad()
@@ -141,7 +142,7 @@ def train_to_perfection(
                 if seed is not None: prog_str += f' Seed: {seed}'
                 prog.set_description(prog_str)
 
-            if accuracy == 100.0:
+            if accuracy == 100.0 and to_perfection:
                 perfection_reached = True
                 if save_checkpoint:
                     checkpoint_path = f'models/checkpoints/nn{name}_{model.hidden_sizes}_{num_params}_{checkpoint_time_str}.pth'
@@ -151,6 +152,13 @@ def train_to_perfection(
                     print(f'Loss: {loss.item():.5f}')
 
                 return perfection_reached, epoch, accuracy
+
+    if not to_perfection and save_checkpoint:
+        checkpoint_path = f'models/checkpoints/nn{name}_{model.hidden_sizes}_{num_params}_{checkpoint_time_str}.pth'
+        model.zero_grad() # zero grads for file size
+        torch.save(model.state_dict(), checkpoint_path)
+        print(f'Model saved at: {checkpoint_path}')
+        print(f'Loss: {loss.item():.5f}')
     
     return perfection_reached, epoch, accuracy
 
