@@ -220,7 +220,7 @@ def simple_train_loop(
     n = state_tensor.shape[0] # number of trianing points
     
     criterion = nn.CrossEntropyLoss()
-    LEARNING_RATE = 1e-3
+    LEARNING_RATE = 5e-4
     WEIGHT_DECAY = 0.0
     optimizer = torch.optim.Adam(
         model.parameters(),
@@ -270,6 +270,8 @@ def simple_train_loop(
 
                 return perfection_reached, epoch, accuracy
 
+    return False, epoch, accuracy
+
 def corner_and_edge_classifier_creator():
     DATA_PATH = 'data/datasets/jsons/other.json'
     with open(DATA_PATH, 'r') as f: states = json.load(f)
@@ -280,20 +282,24 @@ def corner_and_edge_classifier_creator():
         board_rep_fn=board_rep_fn,
     )
 
-    
+    move = 0
+    # move = 1
+    print(f'Move: {move}')
 
     num_seeds = 20
     num_moves_to_resolve = 15
     # prog = tqdm(itertools.product([0, 1], repeat=num_moves_to_resolve), total=2**num_moves_to_resolve)
-    prog = [[1 for _ in range(15)]]
+    prog = [[1 for _ in range(100)]]
     for inclusion_code in prog:
         # generate datasets, resolving positions with both 0 and 1 optimal 
         state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, data_tensor.numpy(), inclusion_code)
 
         state_matrix_0 = torch.from_numpy(state_matrix_0).to(DEVICE, non_blocking=True)
+        state_matrix_0 = state_matrix_0[:, [1,2,3,4,5,6,7,8]]
         y_0 = torch.tensor(y_0).to(DEVICE, non_blocking=True)
 
         state_matrix_1 = torch.from_numpy(state_matrix_1).to(DEVICE, non_blocking=True)
+        state_matrix_1 = state_matrix_1[:, [0,2,3,4,5,6,7,8]]
         y_1 = torch.tensor(y_1).to(DEVICE, non_blocking=True)
 
         for seed in range(num_seeds):
@@ -302,37 +308,38 @@ def corner_and_edge_classifier_creator():
             np.random.seed(seed)       
             torch.manual_seed(seed)
 
-            corner_model = tttclassifer(
-                hidden_sizes=[6],
-            ).to(DEVICE)
-            
-            simple_train_loop(
-                model=corner_model,
-                state_tensor=state_matrix_0,
-                y=y_0,
-                max_epochs=20_000,
-                name='edgeclass',
-            seed=seed,
-            )
+            if move == 0:
 
-            # edge_model = tttclassifer(
-            #     hidden_sizes=[5],
-            # ).to(DEVICE)
+                corner_model = tttclassifer(
+                    input_size=8,
+                    hidden_sizes=[7],
+                ).to(DEVICE)
+                
+                simple_train_loop(
+                    model=corner_model,
+                    state_tensor=state_matrix_0,
+                    y=y_0,
+                    max_epochs=50_000,
+                    name='cornerclass',
+                    seed=seed,
+                )
 
-            # simple_train_loop(
-            #     model=edge_model,
-            #     state_tensor=state_matrix_1,
-            #     y=y_1,
-            #     max_epochs=20_000,
-            #     name='edgeclass',
-            #     seed=seed,
-            # )
+            elif move == 1:
+                edge_model = tttclassifer(
+                    input_size=8,
+                    hidden_sizes=[5],
+                ).to(DEVICE)
+
+                simple_train_loop(
+                    model=edge_model,
+                    state_tensor=state_matrix_1,
+                    y=y_1,
+                    max_epochs=30_000,
+                    name='edgeclass',
+                    seed=seed,
+                )
         
-
         
-            
-
-
 
 if __name__ == '__main__':
 
