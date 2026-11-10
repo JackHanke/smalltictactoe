@@ -55,18 +55,22 @@ if __name__ == "__main__":
     #     name='other'
     # )
 
+
     # model = tttclassifer(
+    #     input_size=8,
     #     hidden_sizes=[7],
+    #     output_size=1
     # ).to(DEVICE)
-    # PATH = 'models/checkpoints/nn_cornerclass_[8, 7, 2]_79_2026-10-28-21:19:09.pth'
-    # model.load_state_dict(torch.load(PATH, weights_only=True))
+    # PATH = 'models/checkpoints/nn_cornerclass_[8, 7, 1]_71_2026-10-30-11:54:07.pth'
+    # model.load_state_dict(torch.load(PATH, weights_only=True, map_location=DEVICE))
 
     model = tttclassifer(
         input_size=8,
-        hidden_sizes=[7],
+        hidden_sizes=[4],
+        output_size=1
     ).to(DEVICE)
-    PATH = 'models/checkpoints/nn_cornerclass_[8, 7, 2]_79_2026-10-28-21:19:09.pth'
-    model.load_state_dict(torch.load(PATH, weights_only=True))
+    PATH = 'models/checkpoints/nn_edgeclass_[8, 4, 1]_41_2026-10-30-10:46:32.pth'
+    model.load_state_dict(torch.load(PATH, weights_only=True, map_location=DEVICE))
 
     # prune_train_loop(
     #     model=model,
@@ -83,11 +87,13 @@ if __name__ == "__main__":
         board_rep_fn=board_rep_fn,
     )
 
-    move = 0
+    # move = 0
     move = 1
     prune_simple_train_loop(
         model=model,
         data_tensor=data_tensor,
         device=DEVICE,
+        move=move,
         max_epochs=100_000,
+        name=f'{move}'
     )

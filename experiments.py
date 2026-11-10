@@ -218,8 +218,14 @@ def simple_train_loop(
 
     num_params = sum(p.numel() for p in model.parameters())
     n = state_tensor.shape[0] # number of trianing points
+
+    # how many epochs do you train on after perfection is reached
+    perfection_train_epochs_patience = 5_000
+    train_patience_counter = 0
     
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
+    criterion = nn.BCEWithLogitsLoss()
+
     LEARNING_RATE = 5e-4
     WEIGHT_DECAY = 0.0
     optimizer = torch.optim.Adam(
@@ -229,7 +235,7 @@ def simple_train_loop(
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
-        factor=0.9,
+        factor=0.95,
         patience=500,
         min_lr=1e-5,
     )
@@ -240,39 +246,45 @@ def simple_train_loop(
         # print(outputs.shape)
         # print(y_0.shape)
         #
-        loss = criterion(outputs, y)
+        # print(outputs.dtype)
+        # print(y.dtype)
+        # print()
+        loss = criterion(outputs, y.float())
         # Backward pass and optimization
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         scheduler.step(loss)
 
-        predictions = torch.argmax(outputs, dim=1)
+        # predictions = torch.argmax(outputs, dim=1)
+        predictions = (outputs > 0).int()
 
         correct = (predictions == y).sum()
 
         accuracy = 100 * correct / n
         
-        if epoch % 100 == 0 or accuracy == 100.0:
+        if epoch % 100 == 0 or correct == n:
 
             prog_str = f'Loss: {loss.item():.8f}, Accuracy: {accuracy:.4f}%, Correct: {correct}, {n - correct}/{n} remaining, n_params: {num_params}.'
-            if seed is not None: prog_str += f' Seed: {seed}'
+            if seed is not None: prog_str = f' Seed: {seed} ' + prog_str
             prog.set_description(prog_str)
 
-            if accuracy == 100.0:
+            if correct == n:
                 perfection_reached = True
-                if save_checkpoint:
-                    checkpoint_path = f'models/checkpoints/nn_{name}_{model.hidden_sizes}_{num_params}_{checkpoint_time_str}.pth'
-                    model.zero_grad() # zero grads for file size
-                    torch.save(model.state_dict(), checkpoint_path)
-                    print(f'Model saved at: {checkpoint_path}')
-                    print(f'Loss: {loss.item():.5f}')
+                train_patience_counter += 1
+                if train_patience_counter == perfection_train_epochs_patience:
+                    if save_checkpoint:
+                        checkpoint_path = f'models/checkpoints/nn_{name}_{model.hidden_sizes}_{num_params}_{checkpoint_time_str}.pth'
+                        model.zero_grad() # zero grads for file size
+                        torch.save(model.state_dict(), checkpoint_path)
+                        print(f'Model saved at: {checkpoint_path}')
+                        print(f'Loss: {loss.item():.5f}')
 
-                return perfection_reached, epoch, accuracy
+                    return perfection_reached, epoch, accuracy
 
     return False, epoch, accuracy
 
-def corner_and_edge_classifier_creator():
+def make_data(inclusion_code):
     DATA_PATH = 'data/datasets/jsons/other.json'
     with open(DATA_PATH, 'r') as f: states = json.load(f)
 
@@ -282,28 +294,44 @@ def corner_and_edge_classifier_creator():
         board_rep_fn=board_rep_fn,
     )
 
+    state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, data_tensor.numpy(), inclusion_code)
+
+    state_matrix_0 = torch.from_numpy(state_matrix_0).to(DEVICE, non_blocking=True)
+    state_matrix_0 = state_matrix_0[:, [1,2,3,4,5,6,7,8]]
+    y_0 = torch.tensor(y_0).to(DEVICE, non_blocking=True).unsqueeze(1)
+    y_0 = 1 - y_0 # flip what is 0 and 1 such that positive logits means optimal
+
+    state_matrix_1 = torch.from_numpy(state_matrix_1).to(DEVICE, non_blocking=True)
+    state_matrix_1 = state_matrix_1[:, [0,2,3,4,5,6,7,8]]
+    y_1 = torch.tensor(y_1).to(DEVICE, non_blocking=True).unsqueeze(1)
+    y_1 = 1 - y_1  # flip what is 0 and 1 such that positive logits means optimal
+
+    return state_matrix_0, y_0, state_matrix_1, y_1
+
+def corner_and_edge_classifier_creator():
+    
+
     move = 0
     # move = 1
     print(f'Move: {move}')
 
-    num_seeds = 20
+    num_seeds = 100
     num_moves_to_resolve = 15
     # prog = tqdm(itertools.product([0, 1], repeat=num_moves_to_resolve), total=2**num_moves_to_resolve)
-    prog = [[1 for _ in range(100)]]
+    prog = [[0 for _ in range(num_moves_to_resolve)]]
     for inclusion_code in prog:
-        # generate datasets, resolving positions with both 0 and 1 optimal 
-        state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, data_tensor.numpy(), inclusion_code)
+        # generate datasets, resolving positions with both 0 and 1 optimal with the `inclusion_code` var
+        state_matrix_0, y_0, state_matrix_1, y_1 = make_data(inclusion_code)
 
-        state_matrix_0 = torch.from_numpy(state_matrix_0).to(DEVICE, non_blocking=True)
-        state_matrix_0 = state_matrix_0[:, [1,2,3,4,5,6,7,8]]
-        y_0 = torch.tensor(y_0).to(DEVICE, non_blocking=True)
+        dataset_info_str = f'''
+        state_matrix_0.shape: {state_matrix_0.shape}
+        y_0.shape           : {y_0.shape}
+        state_matrix_1.shape: {state_matrix_1.shape}
+        y_1 .shape          : {y_1.shape}
+        '''
+        print(dataset_info_str)
 
-        state_matrix_1 = torch.from_numpy(state_matrix_1).to(DEVICE, non_blocking=True)
-        state_matrix_1 = state_matrix_1[:, [0,2,3,4,5,6,7,8]]
-        y_1 = torch.tensor(y_1).to(DEVICE, non_blocking=True)
-
-        for seed in range(num_seeds):
-            # for seed in range(num_seeds):
+        for seed in range(3,num_seeds):
             random.seed(seed)
             np.random.seed(seed)       
             torch.manual_seed(seed)
@@ -313,13 +341,14 @@ def corner_and_edge_classifier_creator():
                 corner_model = tttclassifer(
                     input_size=8,
                     hidden_sizes=[7],
+                    output_size=1
                 ).to(DEVICE)
                 
                 simple_train_loop(
                     model=corner_model,
                     state_tensor=state_matrix_0,
                     y=y_0,
-                    max_epochs=50_000,
+                    max_epochs=100_000,
                     name='cornerclass',
                     seed=seed,
                 )
@@ -327,14 +356,15 @@ def corner_and_edge_classifier_creator():
             elif move == 1:
                 edge_model = tttclassifer(
                     input_size=8,
-                    hidden_sizes=[5],
+                    hidden_sizes=[4],
+                    output_size=1
                 ).to(DEVICE)
 
                 simple_train_loop(
                     model=edge_model,
                     state_tensor=state_matrix_1,
                     y=y_1,
-                    max_epochs=30_000,
+                    max_epochs=100_000,
                     name='edgeclass',
                     seed=seed,
                 )

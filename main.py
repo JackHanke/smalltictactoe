@@ -232,6 +232,7 @@ def filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusio
             rows_to_keep_s[1].append(idx)
             y_s[1].append(1)
 
+    # print(f'Count for both zero: {count}')
     # 
     return feature_state_matrix[rows_to_keep_s[0]], y_s[0], feature_state_matrix[rows_to_keep_s[1]], y_s[1]
 

@@ -11,6 +11,7 @@ from models.nn import TicTacToeNet
 from train import train_to_perfection
 from experiments import simple_train_loop
 from main import filter_feature_state_matrix_among_0_1
+from experiments import make_data
 
 def prune_train_loop(
         model,
@@ -36,25 +37,26 @@ def prune_train_loop(
         num_params = sum(p.numel() for p in model.parameters())
         
         if not perfection_reached or (num_params * fraction_to_prune < 1):
-            # undo previous pruning NOTE so fucking hacky
-            gens_since_no_improvement += 1
+            if gen > 2:
+                # undo previous pruning NOTE so fucking hacky
+                gens_since_no_improvement += 1
 
-            for i in range(len(model.hidden_sizes)-1):
-                model.model[2*i].weight_orig.data.copy_(current_best_state_dict[f'model.{2*i}.weight_orig'])
-                model.model[2*i].bias_orig.data.copy_(current_best_state_dict[f'model.{2*i}.bias_orig'])
-                model.model[2*i].weight_mask.data.copy_(current_best_state_dict[f'model.{2*i}.weight_mask'])
-                model.model[2*i].bias_mask.data.copy_(current_best_state_dict[f'model.{2*i}.bias_mask'])
-            
-            if gens_since_no_improvement == patience or num_params * fraction_to_prune < 1: 
+                for i in range(len(model.hidden_sizes)-1):
+                    model.model[2*i].weight_orig.data.copy_(current_best_state_dict[f'model.{2*i}.weight_orig'])
+                    model.model[2*i].bias_orig.data.copy_(current_best_state_dict[f'model.{2*i}.bias_orig'])
+                    model.model[2*i].weight_mask.data.copy_(current_best_state_dict[f'model.{2*i}.weight_mask'])
+                    model.model[2*i].bias_mask.data.copy_(current_best_state_dict[f'model.{2*i}.bias_mask'])
+                
+                if gens_since_no_improvement == patience or num_params * fraction_to_prune < 1: 
 
-                # make pruning permanent 
-                for (param, param_type) in parameters_to_tune:
-                    prune.remove(param, param_type)
+                    # make pruning permanent 
+                    for (param, param_type) in parameters_to_tune:
+                        prune.remove(param, param_type)
 
-                checkpoint_path = f'models/checkpoints/pruning/nn_nonz_{nonzero_params}_{num_params}_{model.hidden_sizes}.pth'
-                model.zero_grad() # zero grads for file size
-                torch.save(model.state_dict(), checkpoint_path)
-                return
+                    checkpoint_path = f'models/checkpoints/pruning/nn_nonz_{nonzero_params}_{num_params}_{model.hidden_sizes}.pth'
+                    model.zero_grad() # zero grads for file size
+                    torch.save(model.state_dict(), checkpoint_path)
+                    return
 
             fraction_to_prune *= 0.5
         else:
@@ -100,7 +102,9 @@ def prune_simple_train_loop(
         model,
         data_tensor,
         device,
+        move: int,
         max_epochs:int = 10_000,
+        name: str = None,
     ):
 
     gen = 0
@@ -109,19 +113,8 @@ def prune_simple_train_loop(
     patience = 4
     gens_since_no_improvement = 0
 
-    DATA_PATH = 'data/datasets/jsons/other.json'
-    with open(DATA_PATH, 'r') as f: states = json.load(f)
-    inclusion_code = [1 for _ in range(100)]
-    state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, data_tensor.numpy(), inclusion_code)
-    
-    state_matrix_0 = torch.from_numpy(state_matrix_0).to(device, non_blocking=True)
-    state_matrix_0 = state_matrix_0[:, [1,2,3,4,5,6,7,8]]
-    y_0 = torch.tensor(y_0).to(device, non_blocking=True)
-
-    state_matrix_1 = torch.from_numpy(state_matrix_1).to(device, non_blocking=True)
-    state_matrix_1 = state_matrix_1[:, [0,2,3,4,5,6,7,8]]
-    y_1 = torch.tensor(y_1).to(device, non_blocking=True)
-
+    inclusion_code = [0 for _ in range(15)]
+    state_matrix_0, y_0, state_matrix_1, y_1 = make_data(inclusion_code)
 
     while True:
         gen += 1
@@ -134,9 +127,9 @@ def prune_simple_train_loop(
         num_params = sum(p.numel() for p in model.parameters())
         
         if not perfection_reached or (num_params * fraction_to_prune < 1):
-            # undo previous pruning NOTE so fucking hacky
             gens_since_no_improvement += 1
 
+            # undo previous pruning NOTE so fucking hacky
             for i in range(len(model.hidden_sizes)-1):
                 model.model[2*i].weight_orig.data.copy_(current_best_state_dict[f'model.{2*i}.weight_orig'])
                 model.model[2*i].bias_orig.data.copy_(current_best_state_dict[f'model.{2*i}.bias_orig'])
@@ -149,9 +142,15 @@ def prune_simple_train_loop(
                 for (param, param_type) in parameters_to_tune:
                     prune.remove(param, param_type)
 
-                checkpoint_path = f'models/checkpoints/pruning/nn_nonz_{nonzero_params}_{num_params}_{model.hidden_sizes}.pth'
+                nonzero_params = 0
+                for i in range(len(model.hidden_sizes)-1):
+                    nonzero_params += torch.sum(model.model[2*i].weight != 0)
+                    nonzero_params += torch.sum(model.model[2*i].bias != 0)
+
+                checkpoint_path = f'models/checkpoints/pruning/nn_{name}_nonz_{nonzero_params}_{num_params}_{model.hidden_sizes}.pth'
                 model.zero_grad() # zero grads for file size
                 torch.save(model.state_dict(), checkpoint_path)
+                print(f'Model saved at: {checkpoint_path}')
                 return
 
             fraction_to_prune *= 0.5
@@ -194,10 +193,11 @@ def prune_simple_train_loop(
                 y=y_1,
                 max_epochs=100_000,
                 save_checkpoint = False,
-                name='edgeclass',
+                name=f'edgeclass',
             )
 
         if perfection_reached:
+            print('Perfection reached! New best state dict')
             # save current best perfect state dict
             current_best_state_dict = model.state_dict().copy()
             gens_since_no_improvement = 0

@@ -26,7 +26,7 @@ def plot_weights(
     arr = arr.masked_fill(arr == 0, torch.nan)
 
 
-    ax1.imshow(arr, cmap='magma')
+    ax1.imshow(arr, cmap='bwr')
     ax1.set_title(f'{title}')
     # ax1.colorbar()
     # plt.show()
@@ -73,5 +73,5 @@ def plot_single_layer_net(
 
     arr = arr.masked_fill(arr == 0, torch.nan)
 
-    ax1.imshow(arr, cmap='magma')
+    ax1.imshow(arr, cmap='bwr')
     ax1.set_title(f'{title}')

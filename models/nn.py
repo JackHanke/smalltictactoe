@@ -6,12 +6,13 @@ class tttclassifer(nn.Module):
     def __init__(self,
         hidden_sizes: list[int],
         input_size: int = 9,
+        output_size: int = 2,
     ):
         super(tttclassifer, self).__init__()
 
         layers = []
         self.hidden_sizes = hidden_sizes
-        hidden_sizes = [input_size] + hidden_sizes + [2]
+        hidden_sizes = [input_size] + hidden_sizes + [output_size]
         self.hidden_sizes = hidden_sizes
 
         for i, o in zip(hidden_sizes[:-1], hidden_sizes[1:]):
