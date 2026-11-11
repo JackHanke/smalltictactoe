@@ -65,12 +65,20 @@ if __name__ == "__main__":
     # model.load_state_dict(torch.load(PATH, weights_only=True, map_location=DEVICE))
 
     model = tttclassifer(
-        input_size=8,
-        hidden_sizes=[4],
+        input_size=9,
+        hidden_sizes=[3],
         output_size=1
     ).to(DEVICE)
-    PATH = 'models/checkpoints/nn_edgeclass_[8, 4, 1]_41_2026-10-30-10:46:32.pth'
+    PATH = '/Users/jack/vault/software/smalltictactoe/models/checkpoints/nn_edgeclass_[9, 3, 1]_34_2026-11-10-21:31:26.pth'
     model.load_state_dict(torch.load(PATH, weights_only=True, map_location=DEVICE))
+
+    # model = tttclassifer(
+    #     input_size=9,
+    #     hidden_sizes=[6],
+    #     output_size=1
+    # ).to(DEVICE)
+    # PATH = '/Users/jack/vault/software/smalltictactoe/models/checkpoints/nn_cornerclass_[9, 6, 1]_67_2026-11-10-20:20:19.pth'
+    # model.load_state_dict(torch.load(PATH, weights_only=True, map_location=DEVICE))
 
     # prune_train_loop(
     #     model=model,
@@ -80,20 +88,31 @@ if __name__ == "__main__":
     #     max_epochs=100_000,
     # )
 
-    DATA_PATH = 'data/datasets/jsons/other.json'
-    board_rep_fn, rep_length = (trinary_board_rep, 9)
-    data_tensor, moves_mask = data_json_to_tensor(
-        data_json_path=DATA_PATH,
-        board_rep_fn=board_rep_fn,
-    )
+    # DATA_PATH = 'data/datasets/jsons/other.json'
+    # board_rep_fn, rep_length = (trinary_board_rep, 9)
+    # data_tensor, moves_mask = data_json_to_tensor(
+    #     data_json_path=DATA_PATH,
+    #     board_rep_fn=board_rep_fn,
+    # )
+
+    num_moves_to_resolve = 15
+    inclusion_code = [0 for _ in range(num_moves_to_resolve)]
+    state_matrix_0, y_0, state_matrix_1, y_1 = make_data(inclusion_code)
+
+    # if type(columns) is tuple: columns = [columns]
+    # for col_tup in columns:
+    # if move == 0:
+    state_matrix_0 = augment_state_matrix(state_matrix_0, (4,7))
+    # if move == 1:
+    state_matrix_1 = augment_state_matrix(state_matrix_1, (0,3))
 
     # move = 0
     move = 1
     prune_simple_train_loop(
         model=model,
-        data_tensor=data_tensor,
+        data_tensor=state_matrix_0,
         device=DEVICE,
         move=move,
-        max_epochs=100_000,
+        max_epochs=50_000,
         name=f'{move}'
     )

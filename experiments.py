@@ -1,8 +1,10 @@
 import json
-import random
-import numpy as np
 import torch
+import random
+import itertools
+import numpy as np
 from tqdm import tqdm
+from scipy.special import binom
 
 from train import train_to_perfection
 from data.dataset import data_json_to_tensor
@@ -308,20 +310,44 @@ def make_data(inclusion_code):
 
     return state_matrix_0, y_0, state_matrix_1, y_1
 
+def augment_state_matrix(state_matrix, columns):
+    new_column = torch.ones(state_matrix.shape[0],1)
+    for col_idx in columns:
+        new_column *= state_matrix[:, col_idx:(col_idx+1)]
+    new_state_matrix = torch.concat([state_matrix, new_column], dim=1)
+    return new_state_matrix
+
 def corner_and_edge_classifier_creator():
     
 
-    move = 0
+    move = 1
     # move = 1
     print(f'Move: {move}')
 
-    num_seeds = 100
+    num_seeds = 1
     num_moves_to_resolve = 15
     # prog = tqdm(itertools.product([0, 1], repeat=num_moves_to_resolve), total=2**num_moves_to_resolve)
-    prog = [[0 for _ in range(num_moves_to_resolve)]]
-    for inclusion_code in prog:
+    # prog = [[0 for _ in range(num_moves_to_resolve)]]
+    # for inclusion_code in prog:
+    inclusion_code = [0 for _ in range(num_moves_to_resolve)]
+
+    original_column_indices = [i for i in range(8)]
+    column_iter = itertools.combinations(original_column_indices, 2)
+    prog = tqdm(column_iter, total=binom(len(original_column_indices), 2))
+    for columns in column_iter:
+    # column_iter_squared = itertools.combinations(list(column_iter), 2)
+    # for columns in column_iter_squared:
+    # for columns in [[(0,6),(4,6)],[(0,6),(4,7)], [(0,6),(5,6)]]:
+        # prog.set_description(f'{columns}')
         # generate datasets, resolving positions with both 0 and 1 optimal with the `inclusion_code` var
         state_matrix_0, y_0, state_matrix_1, y_1 = make_data(inclusion_code)
+
+        if type(columns) is tuple: columns = [columns]
+        for col_tup in columns:
+            if move == 0:
+                state_matrix_0 = augment_state_matrix(state_matrix_0, col_tup)
+            if move == 1:
+                state_matrix_1 = augment_state_matrix(state_matrix_1, col_tup)
 
         dataset_info_str = f'''
         state_matrix_0.shape: {state_matrix_0.shape}
@@ -329,9 +355,9 @@ def corner_and_edge_classifier_creator():
         state_matrix_1.shape: {state_matrix_1.shape}
         y_1 .shape          : {y_1.shape}
         '''
-        print(dataset_info_str)
+        # print(dataset_info_str)
 
-        for seed in range(3,num_seeds):
+        for seed in range(num_seeds):
             random.seed(seed)
             np.random.seed(seed)       
             torch.manual_seed(seed)
@@ -339,8 +365,8 @@ def corner_and_edge_classifier_creator():
             if move == 0:
 
                 corner_model = tttclassifer(
-                    input_size=8,
-                    hidden_sizes=[7],
+                    input_size=state_matrix_0.shape[1],
+                    hidden_sizes=[5],
                     output_size=1
                 ).to(DEVICE)
                 
@@ -348,15 +374,15 @@ def corner_and_edge_classifier_creator():
                     model=corner_model,
                     state_tensor=state_matrix_0,
                     y=y_0,
-                    max_epochs=100_000,
+                    max_epochs=20_000,
                     name='cornerclass',
-                    seed=seed,
+                    seed=f'{seed} {columns}',
                 )
 
             elif move == 1:
                 edge_model = tttclassifer(
-                    input_size=8,
-                    hidden_sizes=[4],
+                    input_size=state_matrix_1.shape[1],
+                    hidden_sizes=[3],
                     output_size=1
                 ).to(DEVICE)
 
@@ -364,12 +390,15 @@ def corner_and_edge_classifier_creator():
                     model=edge_model,
                     state_tensor=state_matrix_1,
                     y=y_1,
-                    max_epochs=100_000,
+                    max_epochs=20_000,
                     name='edgeclass',
-                    seed=seed,
+                    seed=f'{seed} {columns}',
                 )
         
-        
+'''
+corner, columns to mult: (4,6) seed 1, 50k steps
+edge, columns to mult: (0,4) seed 0, 20k steps
+'''
 
 if __name__ == '__main__':
 

@@ -11,7 +11,7 @@ from models.nn import TicTacToeNet
 from train import train_to_perfection
 from experiments import simple_train_loop
 from main import filter_feature_state_matrix_among_0_1
-from experiments import make_data
+from experiments import *
 
 def prune_train_loop(
         model,
@@ -109,12 +109,16 @@ def prune_simple_train_loop(
 
     gen = 0
     perfection_reached = True
-    fraction_to_prune = 0.05
+    fraction_to_prune = 0.04
     patience = 4
     gens_since_no_improvement = 0
 
     inclusion_code = [0 for _ in range(15)]
     state_matrix_0, y_0, state_matrix_1, y_1 = make_data(inclusion_code)
+    if move == 0:
+        state_matrix_0 = augment_state_matrix(state_matrix_0, (4,6))
+    if move == 1:
+        state_matrix_1 = augment_state_matrix(state_matrix_1, (0,4))
 
     while True:
         gen += 1
@@ -181,7 +185,7 @@ def prune_simple_train_loop(
                 model=model,
                 state_tensor=state_matrix_0,
                 y=y_0,
-                max_epochs=100_000,
+                max_epochs=max_epochs,
                 save_checkpoint = False,
                 name='cornerclass',
             )
@@ -191,7 +195,7 @@ def prune_simple_train_loop(
                 model=model,
                 state_tensor=state_matrix_1,
                 y=y_1,
-                max_epochs=100_000,
+                max_epochs=max_epochs,
                 save_checkpoint = False,
                 name=f'edgeclass',
             )
