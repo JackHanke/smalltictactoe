@@ -1,6 +1,32 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
+
+class RoundToInt(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, weight, scale=1.0):
+        # Scale weights so they span across integer steps, then round
+        scaled_weight = weight * scale
+        rounded_weight = torch.round(scaled_weight)
+        # Scale back down for the forward pass (or keep unscaled depending on your architecture)
+        return rounded_weight / scale
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        # Straight-Through Estimator: pass gradients straight through unmodified
+        return grad_output, None
+
+class IntegerWeightLinear(nn.Linear):
+    def __init__(self, in_features, out_features, bias=True, scale=10.0):
+        super().__init__(in_features, out_features, bias)
+        self.scale = scale  # Controls the resolution/range of your integer weights
+        
+    def forward(self, input):
+        # Quantize weights for the forward pass
+        w_quantized = RoundToInt.apply(self.weight, self.scale)
+        b_quantized = RoundToInt.apply(self.bias, self.scale)
+        return F.linear(input, w_quantized, b_quantized)
 
 class tttclassifer(nn.Module):
     def __init__(self,
@@ -16,7 +42,7 @@ class tttclassifer(nn.Module):
         self.hidden_sizes = hidden_sizes
 
         for i, o in zip(hidden_sizes[:-1], hidden_sizes[1:]):
-            layers.append(nn.Linear(i, o))
+            layers.append(IntegerWeightLinear(i, o))
             layers.append(nn.ReLU()) # Add activation between layers
         # 3. Remove the last ReLU (usually not needed on the output layer)
         layers.pop()

@@ -202,7 +202,7 @@ def filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusio
     '''
     count = 0
     y_s = [[],[]]
-    rows_to_keep_s = [[],[]]
+    rows_to_keep_s = [[],[],[]]
     for idx, (board, moves) in enumerate(states.items()):
         # if more than one legal move, does not include the center (4), ...
         # ... and both 0 and 1 are optimal
@@ -211,6 +211,8 @@ def filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusio
             count += 1
             rows_to_keep_s[resolved_move].append(idx)
             y_s[resolved_move].append(0)
+            # also collect these as separate
+            rows_to_keep_s[2].append(idx)
 
         # ... only 0 is optimal
         elif (board.count(' ') > 1) and (4 not in moves) and (0 in moves) and len(moves) != board.count(' '):
@@ -234,7 +236,7 @@ def filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusio
 
     # print(f'Count for both zero: {count}')
     # 
-    return feature_state_matrix[rows_to_keep_s[0]], y_s[0], feature_state_matrix[rows_to_keep_s[1]], y_s[1]
+    return feature_state_matrix[rows_to_keep_s[0]], y_s[0], feature_state_matrix[rows_to_keep_s[1]], y_s[1], feature_state_matrix[rows_to_keep_s[2]]
 
 
 def islinsep_recurse(
@@ -563,6 +565,33 @@ def decision_function(board_str):
 
     return moves_produced
 
+# def uh():
+#     # create single feature state matrix
+#     max_degree = 3
+#     feature_state_matrix, all_monomials, all_monomial_groups = build_feature_state_matrix(states, max_degree=max_degree)
+#     print(f'Number of monomial groups: {len(all_monomial_groups)}\n Number of monomials: {sum([len(group) for group in all_monomial_groups])}')
+
+#     # create feature indexing map
+#     mon_str_dict = {monomial_to_feature_str(mon):idx for idx, mon in enumerate(all_monomials)} | {idx:monomial_to_feature_str(mon) for idx, mon in enumerate(all_monomials)}
+
+#     # define what groups to start the search with
+#     starter_groups = all_monomial_groups
+#     starter_indices = [mon_str_dict[name] for group in starter_groups for name in group]
+
+#     inclusion_code = [0 for _ in range (15)]
+#     state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, feature_state_matrix, inclusion_code)
+
+#     print(f'state_matrix_1.shape: {state_matrix_1.shape}')
+#     print(f'y_1.shape: {len(y_1)}')
+
+#     is_lin_sep_1, res_x_1 = is_linearly_separable(state_matrix_1[:, starter_indices], y_1)
+
+#     if is_lin_sep_1:
+#         print(res_x_1)
+#     else:
+#         print('nope')
+
+
 
 def main():
     '''
@@ -670,4 +699,6 @@ if __name__ == '__main__':
     '''
     print(key_str)
 
-    main()
+    # main()
+
+    uh()

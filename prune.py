@@ -114,7 +114,7 @@ def prune_simple_train_loop(
     gens_since_no_improvement = 0
 
     inclusion_code = [0 for _ in range(15)]
-    state_matrix_0, y_0, state_matrix_1, y_1 = make_data(inclusion_code)
+    state_matrix_0, y_0, state_matrix_1, y_1, _ = make_data(inclusion_code)
     if move == 0:
         state_matrix_0 = augment_state_matrix(state_matrix_0, (4,6))
     if move == 1:
@@ -130,7 +130,8 @@ def prune_simple_train_loop(
 
         num_params = sum(p.numel() for p in model.parameters())
         
-        if not perfection_reached or (num_params * fraction_to_prune < 1):
+        # if not perfection_reached or (num_params * fraction_to_prune < 1) or gen == 3:
+        if gen == 4:
             gens_since_no_improvement += 1
 
             # undo previous pruning NOTE so fucking hacky
@@ -140,7 +141,8 @@ def prune_simple_train_loop(
                 model.model[2*i].weight_mask.data.copy_(current_best_state_dict[f'model.{2*i}.weight_mask'])
                 model.model[2*i].bias_mask.data.copy_(current_best_state_dict[f'model.{2*i}.bias_mask'])
             
-            if gens_since_no_improvement == patience or num_params * fraction_to_prune < 1: 
+            # if gens_since_no_improvement == patience or num_params * fraction_to_prune < 1: 
+            if True:
 
                 # make pruning permanent 
                 for (param, param_type) in parameters_to_tune:

@@ -238,8 +238,8 @@ def simple_train_loop(
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         factor=0.95,
-        patience=500,
-        min_lr=1e-5,
+        patience=1000,
+        min_lr=5e-6,
     )
 
     prog = tqdm(range(max_epochs), total=max_epochs)
@@ -296,7 +296,7 @@ def make_data(inclusion_code):
         board_rep_fn=board_rep_fn,
     )
 
-    state_matrix_0, y_0, state_matrix_1, y_1 = filter_feature_state_matrix_among_0_1(states, data_tensor.numpy(), inclusion_code)
+    state_matrix_0, y_0, state_matrix_1, y_1, state_matrix_either = filter_feature_state_matrix_among_0_1(states, data_tensor.numpy(), inclusion_code)
 
     state_matrix_0 = torch.from_numpy(state_matrix_0).to(DEVICE, non_blocking=True)
     state_matrix_0 = state_matrix_0[:, [1,2,3,4,5,6,7,8]]
@@ -308,7 +308,13 @@ def make_data(inclusion_code):
     y_1 = torch.tensor(y_1).to(DEVICE, non_blocking=True).unsqueeze(1)
     y_1 = 1 - y_1  # flip what is 0 and 1 such that positive logits means optimal
 
-    return state_matrix_0, y_0, state_matrix_1, y_1
+    # print('fn make_data removing rows already classified by edge classifier!')
+    indices_to_remove = torch.ones(state_matrix_0.shape[0], dtype=torch.bool)
+    for i in [146,147,150,181,184]: indices_to_remove[i] = False
+    state_matrix_0 = state_matrix_0[indices_to_remove]
+    y_0 = y_0[indices_to_remove]
+
+    return state_matrix_0, y_0, state_matrix_1, y_1, state_matrix_either
 
 def augment_state_matrix(state_matrix, columns):
     new_column = torch.ones(state_matrix.shape[0],1)
@@ -318,13 +324,12 @@ def augment_state_matrix(state_matrix, columns):
     return new_state_matrix
 
 def corner_and_edge_classifier_creator():
-    
 
-    move = 1
+    move = 0
     # move = 1
     print(f'Move: {move}')
 
-    num_seeds = 1
+    num_seeds = 100
     num_moves_to_resolve = 15
     # prog = tqdm(itertools.product([0, 1], repeat=num_moves_to_resolve), total=2**num_moves_to_resolve)
     # prog = [[0 for _ in range(num_moves_to_resolve)]]
@@ -340,14 +345,16 @@ def corner_and_edge_classifier_creator():
     # for columns in [[(0,6),(4,6)],[(0,6),(4,7)], [(0,6),(5,6)]]:
         # prog.set_description(f'{columns}')
         # generate datasets, resolving positions with both 0 and 1 optimal with the `inclusion_code` var
-        state_matrix_0, y_0, state_matrix_1, y_1 = make_data(inclusion_code)
+        state_matrix_0, y_0, state_matrix_1, y_1, _ = make_data(inclusion_code)
+        state_matrix_0 = augment_state_matrix(state_matrix_0, (4,6))
+        # state_matrix_1 = augment_state_matrix(state_matrix_1, (0,4))
 
-        if type(columns) is tuple: columns = [columns]
-        for col_tup in columns:
-            if move == 0:
-                state_matrix_0 = augment_state_matrix(state_matrix_0, col_tup)
-            if move == 1:
-                state_matrix_1 = augment_state_matrix(state_matrix_1, col_tup)
+        # if type(columns) is tuple: columns = [columns]
+        # for col_tup in columns:
+        #     if move == 0:
+        #         state_matrix_0 = augment_state_matrix(state_matrix_0, col_tup)
+        #     if move == 1:
+        #         state_matrix_1 = augment_state_matrix(state_matrix_1, col_tup)
 
         dataset_info_str = f'''
         state_matrix_0.shape: {state_matrix_0.shape}
@@ -357,7 +364,7 @@ def corner_and_edge_classifier_creator():
         '''
         # print(dataset_info_str)
 
-        for seed in range(num_seeds):
+        for seed in range(30, num_seeds):
             random.seed(seed)
             np.random.seed(seed)       
             torch.manual_seed(seed)
@@ -366,7 +373,7 @@ def corner_and_edge_classifier_creator():
 
                 corner_model = tttclassifer(
                     input_size=state_matrix_0.shape[1],
-                    hidden_sizes=[5],
+                    hidden_sizes=[6],
                     output_size=1
                 ).to(DEVICE)
                 
@@ -374,7 +381,7 @@ def corner_and_edge_classifier_creator():
                     model=corner_model,
                     state_tensor=state_matrix_0,
                     y=y_0,
-                    max_epochs=20_000,
+                    max_epochs=100_000,
                     name='cornerclass',
                     seed=f'{seed} {columns}',
                 )
@@ -382,7 +389,7 @@ def corner_and_edge_classifier_creator():
             elif move == 1:
                 edge_model = tttclassifer(
                     input_size=state_matrix_1.shape[1],
-                    hidden_sizes=[3],
+                    hidden_sizes=[2],
                     output_size=1
                 ).to(DEVICE)
 
@@ -390,7 +397,7 @@ def corner_and_edge_classifier_creator():
                     model=edge_model,
                     state_tensor=state_matrix_1,
                     y=y_1,
-                    max_epochs=20_000,
+                    max_epochs=100_000,
                     name='edgeclass',
                     seed=f'{seed} {columns}',
                 )
@@ -398,6 +405,8 @@ def corner_and_edge_classifier_creator():
 '''
 corner, columns to mult: (4,6) seed 1, 50k steps
 edge, columns to mult: (0,4) seed 0, 20k steps
+
+seeds with hidden dim 2 for (0,1) with less than 2 wrong for 40k steps: 206, 258, 114 gets 1
 '''
 
 if __name__ == '__main__':

@@ -64,21 +64,21 @@ if __name__ == "__main__":
     # PATH = 'models/checkpoints/nn_cornerclass_[8, 7, 1]_71_2026-10-30-11:54:07.pth'
     # model.load_state_dict(torch.load(PATH, weights_only=True, map_location=DEVICE))
 
-    model = tttclassifer(
-        input_size=9,
-        hidden_sizes=[3],
-        output_size=1
-    ).to(DEVICE)
-    PATH = '/Users/jack/vault/software/smalltictactoe/models/checkpoints/nn_edgeclass_[9, 3, 1]_34_2026-11-10-21:31:26.pth'
-    model.load_state_dict(torch.load(PATH, weights_only=True, map_location=DEVICE))
-
     # model = tttclassifer(
     #     input_size=9,
-    #     hidden_sizes=[6],
+    #     hidden_sizes=[3],
     #     output_size=1
     # ).to(DEVICE)
-    # PATH = '/Users/jack/vault/software/smalltictactoe/models/checkpoints/nn_cornerclass_[9, 6, 1]_67_2026-11-10-20:20:19.pth'
+    # PATH = 'models/checkpoints/nn_edgeclass_[9, 3, 1]_34_2026-11-12-17:53:51.pth'
     # model.load_state_dict(torch.load(PATH, weights_only=True, map_location=DEVICE))
+
+    model = tttclassifer(
+        input_size=9,
+        hidden_sizes=[6],
+        output_size=1
+    ).to(DEVICE)
+    PATH = '/Users/jack/vault/software/smalltictactoe/models/checkpoints/nn_cornerclass_[9, 6, 1]_67_2026-11-12-23:43:50.pth'
+    model.load_state_dict(torch.load(PATH, weights_only=True, map_location=DEVICE))
 
     # prune_train_loop(
     #     model=model,
@@ -97,17 +97,17 @@ if __name__ == "__main__":
 
     num_moves_to_resolve = 15
     inclusion_code = [0 for _ in range(num_moves_to_resolve)]
-    state_matrix_0, y_0, state_matrix_1, y_1 = make_data(inclusion_code)
+    state_matrix_0, y_0, state_matrix_1, y_1, _ = make_data(inclusion_code)
 
     # if type(columns) is tuple: columns = [columns]
     # for col_tup in columns:
     # if move == 0:
-    state_matrix_0 = augment_state_matrix(state_matrix_0, (4,7))
+    state_matrix_0 = augment_state_matrix(state_matrix_0, (4,6))
     # if move == 1:
-    state_matrix_1 = augment_state_matrix(state_matrix_1, (0,3))
+    state_matrix_1 = augment_state_matrix(state_matrix_1, (0,4))
 
     # move = 0
-    move = 1
+    move = 0
     prune_simple_train_loop(
         model=model,
         data_tensor=state_matrix_0,
